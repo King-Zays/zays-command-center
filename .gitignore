@@ -1,3 +1,7 @@
+# Saved browser pages (accidentally saved web pages)
+*.html
+*_files/
+
 # System & OS Files
 .DS_Store
 Thumbs.db
