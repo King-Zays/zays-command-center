@@ -1,0 +1,3234 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import {
+  Search,
+  Send,
+  FileText,
+  Video,
+  Download,
+  RefreshCw,
+  FileDown,
+  ChevronRight,
+  Activity,
+  Terminal,
+  Lock,
+  Loader2,
+  FileCode,
+  Sun,
+  Moon,
+  ArrowLeft,
+  X,
+  LayoutGrid,
+  FileUp,
+  Mic,
+  VolumeX,
+  Volume2,
+  GripVertical
+} from 'lucide-react';
+
+const API_BASE = 'http://localhost:5000/api';
+
+const logoList = [
+  { name: 'Procure', url: 'https://svgl.app/library/procure.svg', gradient: 'linear-gradient(135deg, #0052FF, #00D4FF)' },
+  { name: 'Shopify', url: 'https://svgl.app/library/shopify.svg', gradient: 'linear-gradient(135deg, #96BF48, #EAEF20)' },
+  { name: 'Blender', url: 'https://svgl.app/library/blender.svg', gradient: 'linear-gradient(135deg, #EA7600, #E8A500)' },
+  { name: 'Figma', url: 'https://svgl.app/library/figma.svg', gradient: 'linear-gradient(135deg, #F24E1E, #A259FF)' },
+  { name: 'Spotify', url: 'https://svgl.app/library/spotify.svg', gradient: 'linear-gradient(135deg, #FF007A, #FF4B91)' },
+  { name: 'Lottielab', url: 'https://svgl.app/library/lottielab.svg', gradient: 'linear-gradient(135deg, #13d080, #b3e61c)' },
+  { name: 'Google Cloud', url: 'https://svgl.app/library/google-cloud.svg', gradient: 'linear-gradient(135deg, #4285F4, #00D4FF)' },
+  { name: 'Bing', url: 'https://svgl.app/library/bing.svg', gradient: 'linear-gradient(135deg, #008375, #00C4B4)' }
+];
+
+const AVAILABLE_CONSOLE_COMMANDS = ['help', 'clear', 'ping', 'theme', 'stats', 'chat', 'crt', 'exit', 'testload', 'lock', 'export', 'export-logs', 'hack', 'breach'];
+
+// ====================================================
+// SUB-COMPONENT: 3D PERSPECTIVE TILT CARD (Enhancement 3)
+// ====================================================
+function TiltCard({ logo, theme }: { logo: any; theme: 'light' | 'dark' | 'cyberpunk' | 'matrix' | 'ghost' }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState('perspective(300px) rotateX(0deg) rotateY(0deg)');
+  const [sheenPosition, setSheenPosition] = useState('0% 0%');
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const card = cardRef.current;
+    if (!card) return;
+
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((centerY - y) / centerY) * 15;
+    const rotateY = ((x - centerX) / centerX) * 15;
+
+    setTransform(`perspective(300px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.04)`);
+
+    const percentX = (x / rect.width) * 100;
+    const percentY = (y / rect.height) * 100;
+    setSheenPosition(`${percentX}% ${percentY}%`);
+  };
+
+
+  const handleMouseLeave = () => {
+    setTransform('perspective(300px) rotateX(0deg) rotateY(0deg) scale(1)');
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ transform, transition: 'transform 0.1s ease-out' }}
+      className={`group relative h-24 w-40 shrink-0 flex items-center justify-center rounded-full transition-all overflow-hidden cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.02)] border ${
+        theme === 'dark'
+          ? 'bg-neutral-950 border-white/10 hover:border-white/20'
+          : 'bg-white border-slate-200/60 hover:border-slate-300'
+      }`}
+    >
+      {/* Sheen sheen reflection shine */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-30 transition-opacity duration-300 z-20"
+        style={{
+          background: `radial-gradient(circle 60px at ${sheenPosition}, rgba(255, 255, 255, 0.5), transparent)`
+        }}
+      />
+
+      {/* Hover colorful gradient backdrop */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 scale-150 group-hover:scale-100 transition-all duration-500 ease-out pointer-events-none z-0"
+        style={{ background: logo.gradient }}
+      />
+
+      {/* Image container */}
+      <div className="relative z-10 flex items-center justify-center transition-all duration-300">
+        <img
+          src={logo.url}
+          alt={logo.name}
+          className="h-8 max-w-[90px] object-contain transition-all duration-300 group-hover:brightness-0 group-hover:invert opacity-75 group-hover:opacity-100"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            const parent = e.currentTarget.parentElement;
+            if (parent) {
+              const textSpan = document.createElement('span');
+              textSpan.className = 'text-[11px] font-bold text-slate-400 group-hover:text-white uppercase tracking-wider';
+              textSpan.innerText = logo.name;
+              parent.appendChild(textSpan);
+            }
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ====================================================
+// SUB-COMPONENT: INTERACTIVE CANVAS PARTICLES (Enhancement 5)
+// ====================================================
+function CanvasParticles({
+  theme,
+  matrixSpeed = 'normal',
+  matrixSymbol = 'katakana'
+}: {
+  theme: 'light' | 'dark' | 'cyberpunk' | 'matrix' | 'ghost';
+  matrixSpeed?: 'slow' | 'normal' | 'fast';
+  matrixSymbol?: 'binary' | 'hex' | 'katakana' | 'alphanum';
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationId: number;
+    let width = (canvas.width = canvas.offsetWidth);
+    let height = (canvas.height = canvas.offsetHeight);
+
+    // Matrix Rain states
+    let columns = Math.floor(width / 16);
+    let yPositions = Array(columns).fill(0);
+
+    let chars = 'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ';
+    if (matrixSymbol === 'binary') {
+      chars = '01';
+    } else if (matrixSymbol === 'hex') {
+      chars = '0123456789ABCDEF';
+    } else if (matrixSymbol === 'alphanum') {
+      chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    }
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+      columns = Math.floor(width / 16);
+      yPositions = Array(columns).fill(0);
+    };
+    window.addEventListener('resize', handleResize);
+
+    const particleCount = 45;
+    const particles: Array<{
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      radius: number;
+    }> = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: (Math.random() - 0.5) * 0.35,
+        radius: Math.random() * 2 + 1,
+      });
+    }
+
+    let mouse = { x: -9999, y: -9999 };
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    };
+    const handleMouseLeave = () => {
+      mouse.x = -9999;
+      mouse.y = -9999;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseout', handleMouseLeave);
+
+    let frame = 0;
+    const draw = () => {
+      if (!ctx || !canvas) return;
+
+      frame++;
+      let speedDivider = 2;
+      if (matrixSpeed === 'slow') speedDivider = 4;
+      else if (matrixSpeed === 'normal') speedDivider = 2;
+      else if (matrixSpeed === 'fast') speedDivider = 1;
+
+      if (theme === 'matrix') {
+        if (frame % speedDivider === 0) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+          ctx.fillRect(0, 0, width, height);
+
+          ctx.fillStyle = '#00ff00';
+          ctx.font = '11px monospace';
+
+          for (let i = 0; i < columns; i++) {
+            const text = chars[Math.floor(Math.random() * chars.length)];
+            const x = i * 16;
+            const y = yPositions[i] * 16;
+
+            if (Math.random() > 0.98) {
+              ctx.fillStyle = '#ffffff';
+            } else {
+              ctx.fillStyle = '#00ff00';
+            }
+
+            ctx.fillText(text, x, y);
+
+            if (y > height && Math.random() > 0.975) {
+              yPositions[i] = 0;
+            } else {
+              yPositions[i]++;
+            }
+          }
+        }
+      } else {
+        ctx.clearRect(0, 0, width, height);
+
+        const particleColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.12)' :
+                              theme === 'cyberpunk' ? 'rgba(255, 0, 127, 0.15)' : 'rgba(10, 27, 51, 0.06)';
+        const lineColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.04)' :
+                          theme === 'cyberpunk' ? 'rgba(255, 0, 127, 0.05)' : 'rgba(10, 27, 51, 0.02)';
+        const activeLineColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.15)' :
+                                theme === 'cyberpunk' ? 'rgba(255, 0, 127, 0.25)' : 'rgba(10, 27, 51, 0.07)';
+
+        particles.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy;
+
+          if (p.x < 0 || p.x > width) p.vx *= -1;
+          if (p.y < 0 || p.y > height) p.vy *= -1;
+
+          const dx = mouse.x - p.x;
+          const dy = mouse.y - p.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100) {
+            const force = (100 - dist) / 100;
+            p.x -= (dx / dist) * force * 1.5;
+            p.y -= (dy / dist) * force * 1.5;
+          }
+
+          ctx.fillStyle = particleColor;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const pi = particles[i];
+            const pj = particles[j];
+            const dx = pi.x - pj.x;
+            const dy = pi.y - pj.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 110) {
+              ctx.beginPath();
+              ctx.moveTo(pi.x, pi.y);
+              ctx.lineTo(pj.x, pj.y);
+
+              const midX = (pi.x + pj.x) / 2;
+              const midY = (pi.y + pj.y) / 2;
+              const mouseDist = Math.sqrt((mouse.x - midX) ** 2 + (mouse.y - midY) ** 2);
+
+              if (mouseDist < 80) {
+                ctx.strokeStyle = activeLineColor;
+                ctx.lineWidth = 0.5;
+              } else {
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = 0.3;
+              }
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      animationId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseout', handleMouseLeave);
+      cancelAnimationFrame(animationId);
+    };
+  }, [theme, matrixSpeed, matrixSymbol]);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />;
+}
+
+export default function App() {
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const dragControls1 = useDragControls();
+  const dragControls2 = useDragControls();
+  const dragControls3 = useDragControls();
+  const dragControls4 = useDragControls();
+
+  const dragControls6 = useDragControls();
+  // 1. Multi-Theme State (Light / Dark / Cyberpunk / Matrix)
+  const [theme, setTheme] = useState<'light' | 'dark' | 'cyberpunk' | 'matrix' | 'ghost'>('light');
+  const [crtActive, setCrtActive] = useState(false);
+
+  // Speech API voices lists
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('');
+
+  // 2. View State (Hero main text vs Dashboard Grid View)
+  const [view, setView] = useState<'hero' | 'dashboard'>('hero');
+
+  // 3. Collapsible Sidebar Chat State
+  const [chatOpen, setChatOpen] = useState(false);
+
+  // 4. Global Drag and Drop State
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+
+  // 5. System Console Log States (Enhancement 2)
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [consoleLogs, setConsoleLogs] = useState<string[]>([
+    '[SYSTEM] Mainframe OS initialized.',
+    '[SYSTEM] Connection established with Go backend at localhost:5000.',
+    '[SYSTEM] Drag-and-drop listener active.',
+    '[SYSTEM] Keyboard shortcut listener active (Ctrl+K).'
+  ]);
+  const [consoleInput, setConsoleInput] = useState('');
+  const [consoleHistory, setConsoleHistory] = useState<string[]>([]);
+  const historyPointer = useRef<number>(-1);
+
+  // 6. Voice Interaction States (Enhancement 1)
+  const [isMuted, setIsMuted] = useState(true);
+  const [isListening, setIsListening] = useState(false);
+
+
+  // Premium Polish States
+  const [glitchActive, setGlitchActive] = useState(false);
+  const [soundProfile, setSoundProfile] = useState<'scifi' | 'retro' | 'minimal'>('scifi');
+  const [highLoadWarning, setHighLoadWarning] = useState(false);
+  const [isWordDragHover, setIsWordDragHover] = useState(false);
+  const [isPdfDragHover, setIsPdfDragHover] = useState(false);
+  const [isWordGridDragHover, setIsWordGridDragHover] = useState(false);
+  const [isPdfGridDragHover, setIsPdfGridDragHover] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockPassword, setLockPassword] = useState('');
+  const [lockError, setLockError] = useState(false);
+  const [matrixSpeed, setMatrixSpeed] = useState<'slow' | 'normal' | 'fast'>('normal');
+  const [matrixSymbol, setMatrixSymbol] = useState<'binary' | 'hex' | 'katakana' | 'alphanum'>('katakana');
+  
+  // Breach Hacking states
+  const [breachActive, setBreachActive] = useState(false);
+  const [breachGrid, setBreachGrid] = useState<string[][]>([]);
+  const [breachSequence, setBreachSequence] = useState<string[]>([]);
+  const [breachInput, setBreachInput] = useState<string[]>([]);
+  const [breachActiveRow, setBreachActiveRow] = useState<number | null>(null);
+  const [breachActiveCol, setBreachActiveCol] = useState<number | null>(null);
+  const [breachTimeLeft, setBreachTimeLeft] = useState(30);
+  const [breachResult, setBreachResult] = useState<'success' | 'failed' | null>(null);
+  const [breachThemeUnlocked, setBreachThemeUnlocked] = useState(false);
+
+  // Custom Color states
+  const [useCustomColor, setUseCustomColor] = useState(false);
+  const [customColor, setCustomColor] = useState('#10b981');
+
+
+  // System time states
+  const [systemTime, setSystemTime] = useState(new Date());
+  const [keyRotationCountdown, setKeyRotationCountdown] = useState(60);
+
+  const recognitionRef = useRef<any>(null);  // Keyboard shortcut help overlay state
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+
+  // Navigation & Palette states
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleBreachCellClick = (r: number, c: number, code: string) => {
+    if (breachResult !== null || code === '--') return;
+    
+    // Check constraints
+    if (breachActiveRow !== null && r !== breachActiveRow) return;
+    if (breachActiveCol !== null && c !== breachActiveCol) return;
+    
+    playSound('click');
+    
+    const newInput = [...breachInput, code];
+    setBreachInput(newInput);
+    
+    // Check sequence match
+    let matched = false;
+    if (newInput.length >= breachSequence.length) {
+      const lastN = newInput.slice(-breachSequence.length);
+      matched = lastN.every((val, idx) => val === breachSequence[idx]);
+    }
+    
+    if (matched) {
+      setBreachResult('success');
+      setBreachThemeUnlocked(true);
+      playSound('success', true);
+      addConsoleLog('[SUCCESS] System Breach successful! "Ghost Hack" theme unlocked.');
+      setGlitchActive(true);
+      setTimeout(() => setGlitchActive(false), 400);
+      return;
+    }
+    
+    if (newInput.length >= 4) {
+      setBreachResult('failed');
+      playSound('alarm', true);
+      addConsoleLog('[WARNING] Breach Protocol failed: Buffer full.');
+      return;
+    }
+    
+    // Toggle next direction constraints
+    if (breachActiveRow !== null) {
+      setBreachActiveRow(null);
+      setBreachActiveCol(c);
+    } else {
+      setBreachActiveRow(r);
+      setBreachActiveCol(null);
+    }
+    
+    // Mark cell as used
+    const newGrid = breachGrid.map((row, ri) => 
+      row.map((cell, ci) => (ri === r && ci === c) ? '--' : cell)
+    );
+    setBreachGrid(newGrid);
+  };
+
+  // Global diagnostics data state
+  const [diagnostics, setDiagnostics] = useState<{
+    cpu: string;
+    ram: string;
+    uptime: string;
+    status: string;
+    db_status: string;
+  } | null>(null);
+
+  // Workspace 1: AI Chat State
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<Array<{ sender: 'user' | 'agent'; text: string; toolType?: string; sources?: any[] }>>([
+    {
+      sender: 'agent',
+      text: 'Halo! Saya adalah ZaysAgent. Ada yang bisa saya bantu hari ini?\n\nKetik perintah seperti "buka kompresor pdf" atau seret berkas Anda (.docx / .pdf) langsung ke halaman web ini untuk memprosesnya secara instan!'
+    }
+  ]);
+  const [chatLogs, setChatLogs] = useState<Array<{ step: string; detail: string }>>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+
+  // Workspace 2: Word Converter State
+  const [wordFile, setWordFile] = useState<File | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [convertedPdfUrl, setConvertedPdfUrl] = useState<string | null>(null);
+
+  // Workspace 3: PDF Compressor State
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [compressing, setCompressing] = useState(false);
+  const [compressionResult, setCompressionResult] = useState<{
+    originalSize: number;
+    compressedSize: number;
+    pdfUrl: string;
+  } | null>(null);
+
+  // Workspace 4: Media Downloader State
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaFormat, setMediaFormat] = useState('mp4');
+  const [mediaQuality, setMediaQuality] = useState('720');
+  const [downloadingMedia, setDownloadingMedia] = useState(false);
+  const [downloaderResult, setDownloaderResult] = useState<{
+    title: string;
+    downloadUrl: string;
+    status: string;
+  } | null>(null);
+
+
+
+  // Marquee speed velocity scrubbing states
+  const [marqueeDuration, setMarqueeDuration] = useState('30s');
+  const [marqueePlayState] = useState<'running' | 'paused'>('running');
+  const lastMouseX = useRef<number | null>(null);
+  const velocityTimeout = useRef<any>(null);
+
+  // Workspace 6: Settings & Latency State
+  const [geminiKey, setGeminiKey] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [pingLatency, setPingLatency] = useState<number | null>(null);
+
+  // ====================================================
+  // EFFECT HOOKS
+  // ====================================================
+
+  // Helper console logger
+  // Web Audio sound synthesizer helper
+  const playSound = (type: 'click' | 'success' | 'startup' | 'tick' | 'theme' | 'alarm', force = false) => {
+    if (isMuted && !force) return;
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      
+      if (type === 'alarm') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = soundProfile === 'retro' ? 'sawtooth' : 'sine';
+        osc.frequency.setValueAtTime(580, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(780, ctx.currentTime + 0.15);
+        osc.frequency.linearRampToValueAtTime(580, ctx.currentTime + 0.3);
+        osc.frequency.linearRampToValueAtTime(780, ctx.currentTime + 0.45);
+        osc.frequency.linearRampToValueAtTime(580, ctx.currentTime + 0.6);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+        return;
+      }
+
+      if (soundProfile === 'retro') {
+        if (type === 'click') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(1000, ctx.currentTime);
+          osc.frequency.setValueAtTime(500, ctx.currentTime + 0.04);
+          gain.gain.setValueAtTime(0.04, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.08);
+        } else if (type === 'tick') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(1600, ctx.currentTime);
+          gain.gain.setValueAtTime(0.015, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.02);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.02);
+        } else if (type === 'theme') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(180, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(540, ctx.currentTime + 0.18);
+          gain.gain.setValueAtTime(0.06, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.22);
+        } else if (type === 'success') {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.03, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+          gain.connect(ctx.destination);
+          notes.forEach((f, idx) => {
+            const osc = ctx.createOscillator();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(f, ctx.currentTime + idx * 0.07);
+            osc.connect(gain);
+            osc.start(ctx.currentTime + idx * 0.07);
+            osc.stop(ctx.currentTime + 0.35);
+          });
+        } else if (type === 'startup') {
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.04, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+          gain.connect(ctx.destination);
+          const osc = ctx.createOscillator();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(200, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.6);
+          osc.connect(gain);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.8);
+        }
+      } else if (soundProfile === 'minimal') {
+        if (type === 'click') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1400, ctx.currentTime);
+          gain.gain.setValueAtTime(0.03, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.03);
+        } else if (type === 'tick') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(2200, ctx.currentTime);
+          gain.gain.setValueAtTime(0.01, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.015);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.015);
+        } else if (type === 'theme') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(350, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(450, ctx.currentTime + 0.1);
+          gain.gain.setValueAtTime(0.03, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.12);
+        } else if (type === 'success') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, ctx.currentTime);
+          osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.03, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+        } else if (type === 'startup') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(300, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.5);
+          gain.gain.setValueAtTime(0.04, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.6);
+        }
+      } else {
+        if (type === 'click') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.05, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.08);
+        } else if (type === 'tick') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(1000, ctx.currentTime);
+          gain.gain.setValueAtTime(0.01, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.03);
+        } else if (type === 'theme') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(200, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.2);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+        } else if (type === 'success') {
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc1.frequency.setValueAtTime(523.25, ctx.currentTime);
+          osc1.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08);
+          osc2.frequency.setValueAtTime(783.99, ctx.currentTime + 0.16);
+          gain.gain.setValueAtTime(0.04, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
+          osc1.start();
+          osc2.start();
+          osc1.stop(ctx.currentTime + 0.3);
+          osc2.stop(ctx.currentTime + 0.3);
+        } else if (type === 'startup') {
+          const freqs = [150, 300, 450, 600];
+          const gain = ctx.createGain();
+          gain.gain.setValueAtTime(0.0, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+          gain.connect(ctx.destination);
+          freqs.forEach(f => {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(f * 1.5, ctx.currentTime + 0.8);
+            osc.connect(gain);
+            osc.start();
+            osc.stop(ctx.currentTime + 1.2);
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("AudioContext block", e);
+    }
+  };
+
+  const addConsoleLog = (log: string) => {
+    const time = new Date().toLocaleTimeString();
+    setConsoleLogs(prev => [...prev, `[${time}] ${log}`]);
+    playSound('tick');
+  };
+
+
+
+
+
+  const formatBytes = (bytes: number, decimals = 2) => {
+    if (!bytes) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
+
+
+  const handleMarqueeMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (lastMouseX.current !== null) {
+      const deltaX = Math.abs(e.clientX - lastMouseX.current);
+      if (deltaX > 8) {
+        setMarqueeDuration('10s'); // hyper speed
+      } else if (deltaX > 3) {
+        setMarqueeDuration('20s'); // high speed
+      } else {
+        setMarqueeDuration('30s'); // standard
+      }
+    }
+    lastMouseX.current = e.clientX;
+
+    if (velocityTimeout.current) clearTimeout(velocityTimeout.current);
+    velocityTimeout.current = setTimeout(() => {
+      setMarqueeDuration('30s');
+    }, 150);
+  };
+
+  const commandList = [
+    { name: 'AI Chat Agent Workspace', desc: 'Buka terminal asisten AI dengan pencarian web', key: 'chat' },
+    { name: 'Word to PDF Converter', desc: 'Konversi file DOCX ke PDF lokal dengan cepat', key: 'word' },
+    { name: 'PDF Compressor Optimizer', desc: 'Kompresi dan optimasi ukuran file PDF Anda', key: 'compressor' },
+    { name: 'HD Media Downloader', desc: 'Unduh video dari sosial media via Cobalt API', key: 'downloader' },
+
+    { name: 'System Diagnostics & Settings', desc: 'Pantau RAM/CPU server dan kunci API Gemini', key: 'diagnostics' }
+  ].filter(cmd => cmd.name.toLowerCase().includes(searchQuery.toLowerCase()) || cmd.desc.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const handleCommandPaletteSelect = (workspaceKey: string) => {
+    setShowCommandPalette(false);
+    if (workspaceKey === 'chat') {
+      setChatOpen(true);
+      addConsoleLog('[PALETTE] Selected AI Chat Agent.');
+    } else if (workspaceKey === 'word') {
+      setView('dashboard');
+      triggerToolInChat('word-to-pdf', 'Word to PDF');
+      setChatOpen(true);
+      addConsoleLog('[PALETTE] Opened Word to PDF Converter.');
+    } else if (workspaceKey === 'compressor') {
+      setView('dashboard');
+      triggerToolInChat('pdf-compressor', 'PDF Compressor');
+      setChatOpen(true);
+      addConsoleLog('[PALETTE] Opened PDF Compressor.');
+    } else if (workspaceKey === 'downloader') {
+      setView('dashboard');
+      triggerToolInChat('media-downloader', 'Media Downloader');
+      setChatOpen(true);
+      addConsoleLog('[PALETTE] Opened Media Downloader.');
+
+    } else if (workspaceKey === 'diagnostics') {
+      setView('dashboard');
+      triggerToolInChat('diagnostics', 'Diagnostics');
+      setChatOpen(true);
+      addConsoleLog('[PALETTE] Opened System Diagnostics.');
+    }
+  };
+
+  const handleConsoleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (consoleHistory.length === 0) return;
+      let nextPtr = historyPointer.current + 1;
+      if (nextPtr >= consoleHistory.length) {
+        nextPtr = consoleHistory.length - 1;
+      }
+      historyPointer.current = nextPtr;
+      setConsoleInput(consoleHistory[nextPtr]);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      let nextPtr = historyPointer.current - 1;
+      if (nextPtr < 0) {
+        historyPointer.current = -1;
+        setConsoleInput('');
+      } else {
+        historyPointer.current = nextPtr;
+        setConsoleInput(consoleHistory[nextPtr]);
+      }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      const inputVal = consoleInput.trim().toLowerCase();
+      if (!inputVal) return;
+      const matches = AVAILABLE_CONSOLE_COMMANDS.filter(c => c.startsWith(inputVal));
+      if (matches.length > 0) {
+        setConsoleInput(matches[0]);
+        playSound('click');
+      }
+    }
+  };
+
+  const handleConsoleCommandSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!consoleInput.trim()) return;
+
+    const cmdStr = consoleInput.trim();
+    addConsoleLog(`$ ${cmdStr}`);
+    setConsoleHistory(prev => [cmdStr, ...prev]);
+    historyPointer.current = -1;
+    setConsoleInput('');
+
+    const parts = cmdStr.split(' ');
+    const command = parts[0].toLowerCase();
+    const args = parts.slice(1);
+
+    if (command === 'help') {
+      addConsoleLog('[SYSTEM] Perintah tersedia: help, ping, clear, theme, stats, chat, crt, lock, export, hack, exit');
+      playSound('click');
+    } else if (command === 'clear') {
+      setConsoleLogs([]);
+      playSound('click');
+    } else if (command === 'ping') {
+      handlePing();
+    } else if (command === 'theme') {
+      setTheme(prev => {
+        if (prev === 'light') return 'dark';
+        if (prev === 'dark') return 'cyberpunk';
+        if (prev === 'cyberpunk') return 'matrix';
+        if (prev === 'matrix') {
+          return breachThemeUnlocked ? 'ghost' : 'light';
+        }
+        return 'light';
+      });
+      playSound('theme');
+    } else if (command === 'chat') {
+      setChatOpen(prev => !prev);
+      playSound('click');
+    } else if (command === 'stats') {
+      addConsoleLog(`[STATS] CPU Load: ${diagnostics?.cpu || 'N/A'}`);
+      addConsoleLog(`[STATS] RAM Load: ${diagnostics?.ram || 'N/A'}`);
+      addConsoleLog(`[STATS] Uptime: ${diagnostics?.uptime || 'N/A'}`);
+      addConsoleLog(`[STATS] DB Status: ${diagnostics?.db_status || 'N/A'}`);
+      playSound('success');
+    } else if (command === 'testload') {
+      addConsoleLog('[SYSTEM] Simulating CRITICAL diagnostics load...');
+      setDiagnostics(prev => ({
+        cpu: '92.4%',
+        ram: '88.1%',
+        uptime: prev?.uptime || '2h 14m',
+        status: 'warning',
+        db_status: prev?.db_status || 'connected'
+      }));
+      setHighLoadWarning(true);
+      playSound('alarm');
+    } else if (command === 'crt') {
+      const mode = args[0] ? args[0].toLowerCase() : '';
+      if (mode === 'on') {
+        setCrtActive(true);
+        addConsoleLog('[SYSTEM] CRT scanlines activated.');
+      } else if (mode === 'off') {
+        setCrtActive(false);
+        addConsoleLog('[SYSTEM] CRT scanlines deactivated.');
+      } else {
+        setCrtActive(prev => !prev);
+        addConsoleLog(`[SYSTEM] CRT scanlines toggled.`);
+      }
+      playSound('theme');
+    } else if (command === 'lock') {
+      addConsoleLog('[SYSTEM] Activating secure enclave blockade. Core locked.');
+      setIsLocked(true);
+      playSound('alarm');
+    } else if (command === 'export' || command === 'export-logs') {
+      addConsoleLog('[SYSTEM] Packing terminal session logs...');
+      exportConsoleLogs();
+    } else if (command === 'hack' || command === 'breach') {
+      startBreachGame();
+    } else if (command === 'exit') {
+      setConsoleOpen(false);
+      playSound('click');
+    } else {
+      addConsoleLog(`[ERROR] Perintah tidak dikenal: "${command}". Ketik "help".`);
+      playSound('click');
+    }
+  };
+
+  // Voice Speech Recognition setup
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'id-ID';
+
+      rec.onstart = () => {
+        setIsListening(true);
+        addConsoleLog('[VOICE] Speech recognition started. Listening...');
+      };
+      rec.onend = () => {
+        setIsListening(false);
+        addConsoleLog('[VOICE] Speech recognition ended.');
+      };
+      rec.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setChatInput(prev => (prev ? prev + ' ' + transcript : transcript));
+        addConsoleLog(`[VOICE] Speech recognized: "${transcript}"`);
+      };
+      recognitionRef.current = rec;
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in this browser.');
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
+  };
+
+  // Text to Speech Synthesizer (Enhancement 1)
+  const speakText = (text: string) => {
+    if (isMuted || !window.speechSynthesis) return;
+
+    // Remove code tags and special markdown
+    const clean = text.replace(/\[TOOL:[^\]]+\]/g, '').replace(/[#*`>]/g, '').trim();
+    const utterance = new SpeechSynthesisUtterance(clean);
+    
+    if (selectedVoiceURI) {
+      const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+      }
+    } else {
+      utterance.lang = 'id-ID';
+    }
+    
+    utterance.rate = 1.0;
+
+    window.speechSynthesis.cancel(); // Stop current speech
+    window.speechSynthesis.speak(utterance);
+    addConsoleLog('[SPEECH] Reading agent response out loud.');
+  };
+
+  // Sync background body styles on theme toggle
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.body.style.backgroundColor = '#000000';
+      document.body.style.color = '#ffffff';
+      addConsoleLog('[THEME] Changed workspace theme to Obsidian Dark mode.');
+    } else if (theme === 'light') {
+      document.body.style.backgroundColor = '#f9fafb';
+      document.body.style.color = '#0a1b33';
+      addConsoleLog('[THEME] Changed workspace theme to Light OS mode.');
+    } else if (theme === 'cyberpunk') {
+      document.body.style.backgroundColor = '#0d001a';
+      document.body.style.color = '#ff007f';
+      addConsoleLog('[THEME] Changed workspace theme to Cyberpunk Neon mode.');
+    } else if (theme === 'matrix') {
+      document.body.style.backgroundColor = '#000d00';
+      document.body.style.color = '#00ff00';
+      addConsoleLog('[THEME] Changed workspace theme to Matrix Retro mode.');
+    }
+  }, [theme]);
+
+  // Load voices list for Speech Synthesis
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      const loadVoices = () => {
+        const list = window.speechSynthesis.getVoices();
+        setVoices(list);
+        if (list.length > 0) {
+          const idVoice = list.find(v => v.lang === 'id-ID' || v.lang.includes('id'));
+          setSelectedVoiceURI(idVoice ? idVoice.voiceURI : list[0].voiceURI);
+        }
+      };
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  const getThemeAccentColor = () => {
+    if (useCustomColor) return customColor;
+    if (theme === 'matrix') return '#00ff00';
+    if (theme === 'cyberpunk') return '#ff007f';
+    if (theme === 'light') return '#0052ff';
+    if (theme === 'ghost') return '#00ffcc';
+    return '#10b981';
+  };
+
+  // Theme variable class definitions mapping
+  const getThemeClasses = () => {
+    switch (theme) {
+      case 'light':
+        return {
+          bg: 'bg-white border-slate-200/50 text-[#0a1b33]',
+          card: 'bg-slate-50 border-slate-200/60 text-[#0a1b33]',
+          text: 'text-[#0a1b33]',
+          subText: 'text-slate-500',
+          border: 'border-slate-200/60',
+          input: 'bg-white border-slate-200 text-slate-700',
+          button: 'bg-[#0a1b33] text-white hover:bg-slate-800',
+          activeText: 'text-[#0a1b33]',
+          accent: 'blue'
+        };
+      case 'cyberpunk':
+        return {
+          bg: 'bg-[#120124]/90 border-[#ff007f]/30 text-[#ff007f] shadow-[0_0_30px_rgba(255,0,127,0.1)]',
+          card: 'bg-[#1b0233]/70 border-[#ff007f]/20 text-white',
+          text: 'text-[#ff007f]',
+          subText: 'text-purple-300/60',
+          border: 'border-[#ff007f]/25',
+          input: 'bg-[#21033d]/70 border-[#ff007f]/30 text-white placeholder-purple-500',
+          button: 'bg-[#ff007f] text-white hover:bg-pink-700',
+          activeText: 'text-white',
+          accent: 'pink'
+        };
+      case 'matrix':
+        return {
+          bg: 'bg-[#000f00]/95 border-[#00ff00]/30 text-[#00ff00] shadow-[0_0_30px_rgba(0,255,0,0.1)]',
+          card: 'bg-[#001700]/70 border-[#00ff00]/20 text-[#00ff00]',
+          text: 'text-[#00ff00]',
+          subText: 'text-[#00cc00]/70',
+          border: 'border-[#00ff00]/25',
+          input: 'bg-[#001a00]/70 border-[#00ff00]/30 text-[#00ff00] placeholder-green-800',
+          button: 'bg-[#00ff00] text-black hover:bg-[#00cc00]',
+          activeText: 'text-[#00ff00]',
+          accent: 'green'
+        };
+      case 'ghost':
+        return {
+          bg: 'bg-[#030d0d]/95 border-[#00ffcc]/30 text-[#00ffcc] shadow-[0_0_30px_rgba(0,255,204,0.1)]',
+          card: 'bg-[#041919]/70 border-[#00ffcc]/20 text-[#00ffcc]',
+          text: 'text-[#00ffcc]',
+          subText: 'text-[#00b399]/70',
+          border: 'border-[#00ffcc]/25',
+          input: 'bg-[#020f0f]/70 border-[#00ffcc]/30 text-[#00ffcc] placeholder-[#00665c]',
+          button: 'bg-[#00ffcc] text-black hover:bg-[#00ccaa]',
+          activeText: 'text-[#00ffcc]',
+          accent: 'teal'
+        };
+      case 'dark':
+      default:
+        return {
+          bg: 'bg-neutral-950 border-white/10 text-white shadow-[0_40px_100px_-20px_rgba(255,255,255,0.015)]',
+          card: 'bg-neutral-900 border-white/5 text-white',
+          text: 'text-white',
+          subText: 'text-neutral-400',
+          border: 'border-white/10',
+          input: 'bg-white/5 border-white/10 text-white',
+          button: 'bg-white text-black hover:bg-neutral-200',
+          activeText: 'text-white',
+          accent: 'emerald'
+        };
+    }
+  };
+  const themeCls = getThemeClasses();
+
+  // Load diagnostics & settings on start
+  useEffect(() => {
+    fetchDiagnostics();
+    fetchSettings();
+    const diagInterval = setInterval(fetchDiagnostics, 5000); // 5 seconds for live sparklines
+    return () => clearInterval(diagInterval);
+  }, []);
+
+  // Automatic screen glitch transition hook wkwk
+  useEffect(() => {
+    setGlitchActive(true);
+    const timer = setTimeout(() => setGlitchActive(false), 250);
+    return () => clearTimeout(timer);
+  }, [theme, view]);
+
+  // Automatic screen glitch transition hook wkwk
+  useEffect(() => {
+    setGlitchActive(true);
+    const timer = setTimeout(() => setGlitchActive(false), 250);
+    return () => clearTimeout(timer);
+  }, [theme, view]);
+
+  // Play startup sound on mount / first interaction
+  useEffect(() => {
+    const playStartup = () => {
+      playSound('startup');
+      window.removeEventListener('click', playStartup);
+    };
+    window.addEventListener('click', playStartup);
+    return () => window.removeEventListener('click', playStartup);
+  }, []);
+
+  // Global Keyboard Shortcuts Event Listener
+  useEffect(() => {
+    const handleKeyDownGlobal = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowCommandPalette(false);
+        setShowShortcutsHelp(false);
+        setConsoleOpen(false);
+        setChatOpen(false);
+        playSound('click');
+        return;
+      }
+      
+      if (e.key === '?' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        setShowShortcutsHelp(prev => !prev);
+        playSound('click');
+        return;
+      }
+
+
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'k') {
+          e.preventDefault();
+          setShowCommandPalette(prev => !prev);
+          playSound('click');
+        } else if (e.key === 'd') {
+          e.preventDefault();
+          setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+          playSound('theme');
+        } else if (e.key === 'l') {
+          e.preventDefault();
+          setConsoleOpen(prev => !prev);
+          playSound('click');
+        } else if (e.key === 'm') {
+          e.preventDefault();
+          setIsMuted(prev => !prev);
+          playSound('click');
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDownGlobal);
+    return () => window.removeEventListener('keydown', handleKeyDownGlobal);
+  }, [isMuted, soundProfile]);
+
+  // Global Drag and Drop Listeners
+  useEffect(() => {
+    const handleDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter.current++;
+      if (e.dataTransfer && e.dataTransfer.items.length > 0) {
+        setIsDragging(true);
+        addConsoleLog('[DRAG] File entering browser window bounds.');
+      }
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      dragCounter.current--;
+      if (dragCounter.current === 0) {
+        setIsDragging(false);
+        addConsoleLog('[DRAG] File left window bounds.');
+      }
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      dragCounter.current = 0;
+
+      if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        addConsoleLog(`[DRAG] Dropped file: "${file.name}" (${formatBytes(file.size)}).`);
+
+        if (ext === 'docx') {
+          setView('dashboard');
+          setWordFile(file);
+          setConvertedPdfUrl(null);
+          setChatMessages(prev => [...prev, {
+            sender: 'agent',
+            text: `Berkas Word **${file.name}** berhasil terdeteksi dari drag-and-drop! Formulir konversi di dashboard telah aktif.`,
+            toolType: 'word-to-pdf'
+          }]);
+          setChatOpen(true);
+        } else if (ext === 'pdf') {
+          setView('dashboard');
+          setPdfFile(file);
+          setCompressionResult(null);
+          setChatMessages(prev => [...prev, {
+            sender: 'agent',
+            text: `Berkas PDF **${file.name}** berhasil terdeteksi dari drag-and-drop! Formulir kompresi di dashboard telah aktif.`,
+            toolType: 'pdf-compressor'
+          }]);
+          setChatOpen(true);
+        } else {
+          setChatMessages(prev => [...prev, {
+            sender: 'agent',
+            text: `Anda menjatuhkan berkas **${file.name}** (${formatBytes(file.size)}). Sistem Mainframe mendeteksi berkas ini tetapi memerlukan format .docx atau .pdf untuk diproses otomatis.`,
+          }]);
+          setChatOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, []);
+
+
+
+  // System time and Cryptographic Key Rotation countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSystemTime(new Date());
+      setKeyRotationCountdown(prev => {
+        if (prev <= 1) {
+          addConsoleLog('[SECURE] Secondary cryptographic keys rotated.');
+          return 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Breach Protocol game countdown timer
+  useEffect(() => {
+    if (!breachActive || breachResult !== null) return;
+    if (breachTimeLeft <= 0) {
+      setBreachResult('failed');
+      playSound('alarm', true);
+      addConsoleLog('[WARNING] Breach Protocol failed: TIME ELAPSED.');
+      return;
+    }
+    const timer = setTimeout(() => {
+      setBreachTimeLeft(prev => prev - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [breachActive, breachTimeLeft, breachResult]);
+
+  // ====================================================
+  // API INTEGRATIONS
+  // ====================================================
+
+  const fetchDiagnostics = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/diagnostics`);
+      if (res.ok) {
+        const data = await res.json();
+        setDiagnostics(data);
+        // Warning system triggers wkwk
+        const cpuNum = parseFloat(data.cpu.replace('%', ''));
+        const ramNum = parseFloat(data.ram.replace('%', ''));
+
+        // Warning system triggers wkwk
+        if (cpuNum > 80 || ramNum > 80) {
+          setHighLoadWarning(true);
+          playSound('alarm');
+        } else {
+          setHighLoadWarning(false);
+        }
+      }
+    } catch (err) {
+      console.warn('Diagnostics offline');
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/settings`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.gemini_api_key) {
+          setGeminiKey(data.gemini_api_key);
+        }
+      }
+    } catch (err) {
+      console.warn('Settings endpoint offline');
+    }
+  };
+
+
+
+  const startBreachGame = () => {
+    const hexCodes = ['E9', '7A', '1C', '55', 'BD', 'FF', '4A'];
+    const grid: string[][] = [];
+    for (let r = 0; r < 5; r++) {
+      const row: string[] = [];
+      for (let c = 0; c < 5; c++) {
+        row.push(hexCodes[Math.floor(Math.random() * hexCodes.length)]);
+      }
+      grid.push(row);
+    }
+    
+    // Generate valid target sequence from grid walking paths
+    const seq: string[] = [];
+    let currRow = 0;
+    let currCol = Math.floor(Math.random() * 5);
+    seq.push(grid[currRow][currCol]);
+    
+    currRow = Math.floor(Math.random() * 5);
+    seq.push(grid[currRow][currCol]);
+    
+    currCol = Math.floor(Math.random() * 5);
+    seq.push(grid[currRow][currCol]);
+    
+    setBreachGrid(grid);
+    setBreachSequence(seq);
+    setBreachInput([]);
+    setBreachActiveRow(0); // Top row active
+    setBreachActiveCol(null);
+    setBreachTimeLeft(30);
+    setBreachResult(null);
+    setBreachActive(true);
+    playSound('startup', true);
+    addConsoleLog('[SYSTEM] Initializing system Breach Protocol decryptor...');
+  };
+
+  const exportConsoleLogs = () => {
+    try {
+      const content = consoleLogs.join('\n');
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `mainframe-session-${new Date().toISOString().slice(0,10)}.log`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      addConsoleLog('[SYSTEM] Console logs exported successfully.');
+      playSound('success');
+    } catch (err) {
+      console.error(err);
+      addConsoleLog('[ERROR] Gagal mengekspor log.');
+    }
+  };
+
+  const saveSettings = async () => {
+    setSettingsLoading(true);
+    addConsoleLog('[SETTINGS] Uploading API Key to Go SQLite database...');
+    try {
+      const res = await fetch(`${API_BASE}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gemini_api_key: geminiKey })
+      });
+      if (res.ok) {
+        alert('API Key berhasil disimpan ke database SQLite!');
+        addConsoleLog('[SETTINGS] API Key saved successfully.');
+      } else {
+        alert('Gagal menyimpan API Key');
+        addConsoleLog('[SETTINGS] Failed to save key.');
+      }
+    } catch (err) {
+      alert('Koneksi database gagal.');
+      addConsoleLog('[SETTINGS] Server offline error.');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handlePing = async () => {
+    const start = performance.now();
+    addConsoleLog('[DIAGNOSTICS] Pinging Go Backend...');
+    try {
+      const res = await fetch(`${API_BASE}/diagnostics`);
+      if (res.ok) {
+        const end = performance.now();
+        const latency = Math.round(end - start);
+        setPingLatency(latency);
+        addConsoleLog(`[DIAGNOSTICS] Ping successful. Latency: ${latency} ms.`);
+      }
+    } catch (err) {
+      setPingLatency(null);
+      addConsoleLog('[DIAGNOSTICS] Ping failed. Backend unreachable.');
+    }
+  };
+
+  // AI Chat Submit
+  const handleChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMsg = chatInput;
+    setChatMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
+    setChatInput('');
+    setChatLoading(true);
+    setChatLogs([{ step: 'Inisialisasi', detail: 'Menghubungkan ke server backend...' }]);
+    addConsoleLog(`[CHAT] User query: "${userMsg}"`);
+
+    // Conversational keywords triggers
+    const lower = userMsg.toLowerCase();
+    let detectedTool: string | undefined;
+    
+    if (lower.includes('word') || lower.includes('docx') || lower.includes('convert') || lower.includes('konversi')) {
+      detectedTool = 'word-to-pdf';
+    } else if (lower.includes('compress') || lower.includes('kompres') || lower.includes('pdf')) {
+      detectedTool = 'pdf-compressor';
+    } else if (lower.includes('download') || lower.includes('video') || lower.includes('youtube') || lower.includes('cobalt')) {
+      detectedTool = 'media-downloader';
+
+    } else if (lower.includes('diagnostics') || lower.includes('cpu') || lower.includes('ram') || lower.includes('ping') || lower.includes('settings')) {
+      detectedTool = 'diagnostics';
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/agent-chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMsg })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setChatMessages(prev => [...prev, {
+          sender: 'agent',
+          text: data.answer,
+          sources: data.sources,
+          toolType: detectedTool
+        }]);
+        speakText(data.answer);
+        if (data.logs) {
+          setChatLogs(data.logs);
+        }
+      } else {
+        const errMsg = 'Gagal mendapatkan respon dari server. Menjalankan fallback offline.';
+        setChatMessages(prev => [...prev, {
+          sender: 'agent',
+          text: errMsg,
+          toolType: detectedTool
+        }]);
+        speakText(errMsg);
+      }
+    } catch (err) {
+      setChatMessages(prev => [...prev, {
+        sender: 'agent',
+        text: 'Mengaktifkan widget lokal di obrolan Anda:',
+        toolType: detectedTool || undefined
+      }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Word PDF Conversion
+  const handleWordConversion = async () => {
+    if (!wordFile) return;
+    setConverting(true);
+    setConvertedPdfUrl(null);
+    addConsoleLog(`[CONVERTER] Opening Word parser stream for "${wordFile.name}"...`);
+
+    const formData = new FormData();
+    formData.append('file', wordFile);
+
+    try {
+      const res = await fetch(`${API_BASE}/convert-word-pdf`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setConvertedPdfUrl(url);
+        addConsoleLog('[CONVERTER] File successfully converted into A4 PDF.');
+        playSound('success');
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = wordFile.name.replace(/\.[^/.]+$/, '') + '.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        alert('Gagal mengonversi file.');
+        addConsoleLog('[CONVERTER] Conversion failure.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan jaringan.');
+      addConsoleLog('[CONVERTER] Network error contacting Go server.');
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  // PDF Compressor
+  const handleCompressPdf = async () => {
+    if (!pdfFile) return;
+    setCompressing(true);
+    setCompressionResult(null);
+    addConsoleLog(`[COMPRESSOR] Initializing PDF structural compression for "${pdfFile.name}"...`);
+
+    const formData = new FormData();
+    formData.append('file', pdfFile);
+
+    try {
+      const res = await fetch(`${API_BASE}/compress-pdf`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        const originalSize = parseInt(res.headers.get('x-original-size') || '0', 10);
+        const compressedSize = parseInt(res.headers.get('x-compressed-size') || '0', 10);
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+
+        setCompressionResult({
+          originalSize,
+          compressedSize,
+          pdfUrl: url
+        });
+
+        addConsoleLog(`[COMPRESSOR] PDF size optimized: ${formatBytes(originalSize)} -> ${formatBytes(compressedSize)}.`);
+        playSound('success');
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'compressed_' + pdfFile.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        alert('Gagal mengompres PDF.');
+        addConsoleLog('[COMPRESSOR] Compression failed.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan jaringan.');
+      addConsoleLog('[COMPRESSOR] Network error contacting Go server.');
+    } finally {
+      setCompressing(false);
+    }
+  };
+
+  // Media Downloader
+  const handleMediaDownload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mediaUrl.trim()) return;
+
+    setDownloadingMedia(true);
+    setDownloaderResult(null);
+    addConsoleLog(`[DOWNLOADER] Intercepting link payload: "${mediaUrl}"...`);
+
+    try {
+      const res = await fetch(`${API_BASE}/media-download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: mediaUrl,
+          format: mediaFormat,
+          quality: mediaQuality
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setDownloaderResult({
+          title: data.title,
+          downloadUrl: data.downloadUrl,
+          status: data.status
+        });
+        addConsoleLog(`[DOWNLOADER] Cobalt API returned download link for "${data.title}".`);
+        playSound('success');
+      } else {
+        alert('Gagal mendapatkan tautan download.');
+        addConsoleLog('[DOWNLOADER] API retrieval failed.');
+      }
+    } catch (err) {
+      alert('Koneksi backend gagal.');
+      addConsoleLog('[DOWNLOADER] Connection refused.');
+    } finally {
+      setDownloadingMedia(false);
+    }
+  };
+
+  // ====================================================
+  // INTERACTIVE BEHAVIORS & UTILITIES
+  // ====================================================
+
+  const triggerToolInChat = (toolKey: string, toolLabel: string) => {
+    addConsoleLog(`[CHAT] Injecting inline tool widget: "${toolLabel}".`);
+    setChatMessages(prev => [...prev, {
+      sender: 'agent',
+      text: `Berikut adalah perkakas **${toolLabel}** yang Anda minta. Silakan gunakan formulir interaktif di bawah ini:`,
+      toolType: toolKey
+    }]);
+  };
+
+  // Helper renderer for inline tools inside chat messages
+  const renderChatTool = (toolType: string) => {
+    const cardBg = theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10';
+    const textTheme = theme === 'light' ? 'text-[#0a1b33]' : 'text-white';
+    const inputTheme = theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-white/5 border-white/10 text-white';
+
+    switch (toolType) {
+      case 'word-to-pdf':
+        return (
+          <div className={`mt-3 p-4 border rounded-2xl space-y-4 shadow-sm ${cardBg}`}>
+            <h4 className="text-xs font-bold flex items-center space-x-1.5"><FileText className="w-3.5 h-3.5 text-blue-500" /><span className={textTheme}>Word to PDF Converter</span></h4>
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsWordDragHover(true);
+              }}
+              onDragLeave={() => setIsWordDragHover(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsWordDragHover(false);
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  setWordFile(e.dataTransfer.files[0]);
+                }
+              }}
+              style={{ '--glow-color': getThemeAccentColor() } as React.CSSProperties}
+              className={`border border-dashed border-slate-300 rounded-xl p-4 text-center bg-white/20 transition-all ${
+                isWordDragHover ? 'uploader-glow' : ''
+              }`}
+            >
+              <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <input
+                type="file"
+                accept=".docx"
+                onChange={e => {
+                  if (e.target.files && e.target.files[0]) {
+                    setWordFile(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+                id="chat-docx-uploader"
+              />
+              <label
+                htmlFor="chat-docx-uploader"
+                className="inline-block bg-[#0a1b33] text-white text-[10px] font-semibold px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-800"
+              >
+                Upload DOCX
+              </label>
+              {wordFile && <p className="text-[10px] text-emerald-500 mt-2 font-semibold">{wordFile.name}</p>}
+            </div>
+            {wordFile && (
+              <button
+                onClick={handleWordConversion}
+                disabled={converting}
+                className="w-full bg-[#0a1b33] text-white py-2 rounded-lg font-bold hover:bg-slate-800 cursor-pointer flex items-center justify-center space-x-1.5 text-[10px]"
+              >
+                {converting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+                <span>{converting ? 'Converting...' : 'Convert to PDF'}</span>
+              </button>
+            )}
+            {convertedPdfUrl && (
+              <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between text-[10px]">
+                <span className="text-emerald-500">Generated successfully!</span>
+                <a href={convertedPdfUrl} download="converted.pdf" className="text-blue-500 hover:underline font-bold">Download</a>
+              </div>
+            )}
+          </div>
+        );
+      case 'pdf-compressor':
+        return (
+          <div className={`mt-3 p-4 border rounded-2xl space-y-4 shadow-sm ${cardBg}`}>
+            <h4 className="text-xs font-bold flex items-center space-x-1.5"><FileCode className="w-3.5 h-3.5 text-purple-500" /><span className={textTheme}>PDF Compressor</span></h4>
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsPdfDragHover(true);
+              }}
+              onDragLeave={() => setIsPdfDragHover(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsPdfDragHover(false);
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  setPdfFile(e.dataTransfer.files[0]);
+                }
+              }}
+              style={{ '--glow-color': getThemeAccentColor() } as React.CSSProperties}
+              className={`border border-dashed border-slate-300 rounded-xl p-4 text-center bg-white/20 transition-all ${
+                isPdfDragHover ? 'uploader-glow' : ''
+              }`}
+            >
+              <FileCode className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={e => {
+                  if (e.target.files && e.target.files[0]) {
+                    setPdfFile(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+                id="chat-pdf-uploader"
+              />
+              <label
+                htmlFor="chat-pdf-uploader"
+                className="inline-block bg-[#0a1b33] text-white text-[10px] font-semibold px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-800"
+              >
+                Upload PDF
+              </label>
+              {pdfFile && <p className="text-[10px] text-emerald-500 mt-2 font-semibold">{pdfFile.name}</p>}
+            </div>
+            {pdfFile && (
+              <button
+                onClick={handleCompressPdf}
+                disabled={compressing}
+                className="w-full bg-[#0a1b33] text-white py-2 rounded-lg font-bold hover:bg-slate-800 cursor-pointer flex items-center justify-center space-x-1.5 text-[10px]"
+              >
+                {compressing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                <span>{compressing ? 'Optimizing...' : 'Compress PDF'}</span>
+              </button>
+            )}
+            {compressionResult && (
+              <div className="p-3 bg-white/10 border border-slate-200/20 rounded-xl text-[10px] space-y-2.5">
+                <div className="flex justify-between font-semibold border-b border-slate-200/10 pb-1.5">
+                  <span>Hasil Kompresi PDF</span>
+                  <span className="text-emerald-500 font-bold">
+                    {Math.round((1 - compressionResult.compressedSize / compressionResult.originalSize) * 100)}% Hemat
+                  </span>
+                </div>
+                
+                {/* Visual Comparative Chart */}
+                <div className="space-y-2">
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between text-[8px] text-slate-400">
+                      <span>Original Size</span>
+                      <span>{formatBytes(compressionResult.originalSize)}</span>
+                    </div>
+                    <div className="w-full bg-slate-200/30 h-3.5 rounded-full overflow-hidden">
+                      <div className="bg-slate-400 h-full rounded-full" style={{ width: '100%' }} />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between text-[8px] text-slate-400">
+                      <span>Optimized Size</span>
+                      <span className="text-emerald-500 font-bold">{formatBytes(compressionResult.compressedSize)}</span>
+                    </div>
+                    <div className="w-full bg-slate-200/30 h-3.5 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out" 
+                        style={{ width: `${(compressionResult.compressedSize / compressionResult.originalSize) * 100}%` }} 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      case 'media-downloader':
+        return (
+          <div className={`mt-3 p-4 border rounded-2xl space-y-3 shadow-sm ${cardBg}`}>
+            <h4 className="text-xs font-bold flex items-center space-x-1.5"><Video className="w-3.5 h-3.5 text-rose-500" /><span className={textTheme}>Media Downloader</span></h4>
+            <input
+              type="url"
+              placeholder="Paste social media URL here..."
+              value={mediaUrl}
+              onChange={e => setMediaUrl(e.target.value)}
+              className={`w-full border rounded-lg px-3 py-2 text-[10px] outline-none ${inputTheme}`}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <select value={mediaFormat} onChange={e => setMediaFormat(e.target.value)} className={`border rounded-lg px-2 py-1.5 text-[10px] outline-none ${inputTheme}`}>
+                <option value="mp4" className="text-slate-700">MP4 (Video)</option>
+                <option value="mp3" className="text-slate-700">MP3 (Audio)</option>
+              </select>
+              <select value={mediaQuality} onChange={e => setMediaQuality(e.target.value)} className={`border rounded-lg px-2 py-1.5 text-[10px] outline-none ${inputTheme}`}>
+                <option value="1080" className="text-slate-700">1080p</option>
+                <option value="720" className="text-slate-700">720p</option>
+                <option value="480" className="text-slate-700">480p</option>
+              </select>
+            </div>
+            <button
+              onClick={handleMediaDownload}
+              disabled={downloadingMedia}
+              className="w-full bg-[#0a1b33] text-white py-2 rounded-lg font-bold hover:bg-slate-800 cursor-pointer flex items-center justify-center space-x-1.5 text-[10px]"
+            >
+              {downloadingMedia ? <Loader2 className="w-3 h-3 animate-spin" /> : <Video className="w-3.5 h-3.5" />}
+              <span>Get Download Link</span>
+            </button>
+            {downloaderResult && (
+              <div className="p-3 bg-white/10 border border-slate-200/20 rounded-2xl space-y-2 text-[10px]">
+                <div className="flex items-center justify-between">
+                  <span className="truncate max-w-[150px] font-semibold text-slate-200">{downloaderResult.title}</span>
+                  <a href={downloaderResult.downloadUrl} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline font-bold">Download Link</a>
+                </div>
+                {downloaderResult.downloadUrl && (
+                  <div className="relative rounded-xl overflow-hidden border border-white/5 bg-black/40 aspect-video flex items-center justify-center">
+                    <video
+                      src={downloaderResult.downloadUrl}
+                      controls
+                      preload="metadata"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        console.warn("Inline player blocked by CORS or codec", e);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      case 'diagnostics':
+        return (
+          <div className={`mt-3 p-4 border rounded-2xl space-y-3 shadow-sm ${cardBg}`}>
+            <h4 className="text-xs font-bold flex items-center justify-between w-full">
+              <span className="flex items-center space-x-1.5">
+                <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                <span className={textTheme}>System Diagnostics</span>
+              </span>
+              {highLoadWarning && (
+                <span className="bg-red-500/20 border border-red-500/40 text-red-500 text-[7px] font-bold px-1.5 py-0.5 rounded animate-pulse select-none">
+                  ⚠️ CRITICAL LOAD
+                </span>
+              )}
+            </h4>
+            <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="bg-white/20 p-2.5 rounded-xl border border-slate-200/40 flex flex-col justify-between">
+                <div>
+                  <span className="text-slate-400 block text-[8px]">CPU Load</span>
+                  <span className="font-bold">{diagnostics?.cpu || '0.0%'}</span>
+                </div>
+              </div>
+              <div className="bg-white/20 p-2.5 rounded-xl border border-slate-200/40 flex flex-col justify-between">
+                <div>
+                  <span className="text-slate-400 block text-[8px]">RAM Load</span>
+                  <span className="font-bold">{diagnostics?.ram || '0.0%'}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* System Clock & Countdown HUD */}
+            <div className="bg-black/40 p-2.5 rounded-xl border border-emerald-500/10 grid grid-cols-2 gap-1.5 text-[8.5px] font-mono leading-tight">
+              <div>
+                <span className="text-slate-500 block text-[7px] uppercase font-semibold">Local HUD Clock</span>
+                <span className="text-[#00ffcc] font-bold text-[10px]">
+                  {systemTime.toLocaleTimeString()}
+                </span>
+                <span className="text-slate-400 block text-[6.5px]">
+                  WIB (UTC+7)
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-slate-500 block text-[7px] uppercase font-semibold">Crypto Rotation</span>
+                <span className="text-yellow-400 font-bold block text-[10px] animate-pulse">
+                  {keyRotationCountdown}s
+                </span>
+                <span className="text-[6.5px] text-slate-400">
+                  Sec-Keys Rotate
+                </span>
+              </div>
+            </div>
+
+            <button onClick={handlePing} className="w-full bg-[#0a1b33] text-white py-1.5 rounded-lg font-bold hover:bg-slate-800 text-[10px]">Ping Latency</button>
+            {pingLatency !== null && <p className="text-[10px] text-emerald-500 text-center font-bold">Latency: {pingLatency} ms</p>}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div
+      className={`min-h-screen w-full py-10 px-4 md:px-10 flex flex-col justify-start transition-colors duration-500 ${
+        theme === 'light' ? 'bg-[#f9fafb]' :
+        theme === 'cyberpunk' ? 'bg-[#080012]' :
+        theme === 'matrix' ? 'bg-[#000600]' : 'bg-[#000000]'
+      } ${themeCls.text} ${crtActive ? 'crt-screen crt-flicker' : ''} ${glitchActive ? 'cyber-glitch' : ''}`}
+    >
+      {isLocked && (
+        <div className="fixed inset-0 z-[9999] bg-neutral-950/95 backdrop-blur-lg flex flex-col items-center justify-center font-mono p-6 text-emerald-400 select-none">
+          {crtActive && <div className="crt-screen crt-flicker absolute inset-0 pointer-events-none" />}
+          
+          <div className="w-full max-w-md p-8 border border-emerald-500/20 bg-black/40 rounded-3xl text-center space-y-6 relative overflow-hidden shadow-[0_0_50px_rgba(0,255,0,0.05)] animate-fade-in">
+            <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+              <Lock className="w-10 h-10 text-red-500" />
+            </div>
+            
+            <div className="space-y-2">
+              <h2 className="text-sm font-bold tracking-widest text-red-500 uppercase">
+                ⚠️ CORE COGNITIVE ENCLAVE LOCKED
+              </h2>
+              <p className="text-[9px] text-slate-400">
+                Unauthorized access will trigger secondary alarms. Enter bypass credentials to unlock.
+              </p>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (lockPassword === 'admin') {
+                  setLockError(false);
+                  setLockPassword('');
+                  setIsLocked(false);
+                  playSound('success', true);
+                  setGlitchActive(true);
+                  setTimeout(() => setGlitchActive(false), 300);
+                  addConsoleLog('[SYSTEM] Decryption bypass successful. Terminal unlocked.');
+                } else {
+                  setLockError(true);
+                  playSound('alarm', true);
+                  addConsoleLog('[WARNING] Decryption bypass failed: ACCESS DENIED.');
+                }
+              }}
+              className="space-y-4"
+            >
+              <div className="relative">
+                <input
+                  type="password"
+                  value={lockPassword}
+                  onChange={(e) => {
+                    setLockPassword(e.target.value);
+                    setLockError(false);
+                  }}
+                  placeholder="Enter bypass passcode..."
+                  className={`w-full bg-black/50 border rounded-xl px-4 py-2 text-center text-xs tracking-wider outline-none font-mono ${
+                    lockError ? 'border-red-500 text-red-500 animate-shake' : 'border-emerald-500/30 text-emerald-400 placeholder-emerald-700/50'
+                  }`}
+                  autoFocus
+                />
+              </div>
+
+              {lockError && (
+                <div className="text-[8px] text-red-500 font-bold tracking-wider animate-pulse">
+                  [ACCESS DENIED: CREDENTIAL MISMATCH]
+                </div>
+              )}
+
+              <div className="flex space-x-2">
+                <button
+                  type="submit"
+                  className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold py-2 rounded-xl text-[10px] transition-all cursor-pointer active:scale-95"
+                >
+                  DECRYPT ACCESS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLockPassword('admin');
+                    setLockError(false);
+                  }}
+                  className="bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-slate-400 px-3 py-2 rounded-xl text-[8px] transition-all cursor-pointer"
+                  title="Quick Fill Bypass Code"
+                >
+                  Clue
+                </button>
+              </div>
+            </form>
+            
+            <div className="text-[7px] text-slate-500 font-semibold border-t border-slate-800/30 pt-3">
+              SYSTEM LOCKDOWN STATE: SECURE // CRYPTO-KEY STAGE 2
+            </div>
+          </div>
+        </div>
+      )}
+
+            {breachActive && (
+        <div className="fixed inset-0 z-[9999] bg-[#020707]/97 backdrop-blur-xl flex flex-col items-center justify-center font-mono p-6 text-emerald-400 select-none">
+          {crtActive && <div className="crt-screen crt-flicker absolute inset-0 pointer-events-none" />}
+          
+          <div className="w-full max-w-2xl border border-emerald-500/20 bg-[#010a0a]/80 p-6 rounded-3xl space-y-6 shadow-[0_0_60px_rgba(0,255,200,0.1)] animate-fade-in">
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-emerald-500/20 pb-4">
+              <div className="flex items-center space-x-2">
+                <Terminal className="w-5 h-5 text-[#00ffcc] animate-pulse" />
+                <span className="text-sm font-bold tracking-wider text-[#00ffcc]">BREACH_PROTOCOL // V3.21</span>
+              </div>
+              <div className={`text-xs font-bold px-3 py-1 rounded-full border border-emerald-500/30 ${
+                breachTimeLeft <= 10 ? 'text-red-500 border-red-500/30 animate-pulse' : 'text-emerald-400'
+              }`}>
+                TIMER: {breachTimeLeft}s
+              </div>
+            </div>
+
+            {breachResult === null ? (
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                {/* Left: Code Matrix */}
+                <div className="md:col-span-3 space-y-2">
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">
+                    Code Matrix
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5 bg-black/60 p-3 rounded-2xl border border-emerald-500/10">
+                    {breachGrid.map((row, r) => 
+                      row.map((cell, c) => {
+                        const isRowActive = breachActiveRow === r;
+                        const isColActive = breachActiveCol === c;
+                        const isPlayable = (breachActiveRow !== null && isRowActive) || (breachActiveCol !== null && isColActive);
+                        
+                        return (
+                          <button
+                            key={`${r}-${c}`}
+                            onClick={() => handleBreachCellClick(r, c, cell)}
+                            disabled={cell === '--'}
+                            className={`aspect-square flex items-center justify-center text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
+                              cell === '--'
+                                ? 'bg-neutral-900 border-neutral-800 text-neutral-700 cursor-not-allowed'
+                                : isPlayable
+                                ? 'bg-emerald-500/10 border-[#00ffcc]/40 text-[#00ffcc] hover:bg-[#00ffcc]/20 shadow-[0_0_10px_rgba(0,255,204,0.15)] active:scale-95'
+                                : 'bg-transparent border-emerald-500/5 text-emerald-800 hover:text-emerald-600'
+                            }`}
+                          >
+                            {cell}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                  <div className="text-[7px] text-slate-500 uppercase tracking-wider">
+                    {breachActiveRow !== null ? '💡 Pilih dari baris yang tersorot' : '💡 Pilih dari kolom yang tersorot'}
+                  </div>
+                </div>
+
+                {/* Right: Sequences and Buffer */}
+                <div className="md:col-span-2 space-y-5">
+                  {/* Target Sequence */}
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                      Upload Sequence
+                    </div>
+                    <div className="flex space-x-2 bg-black/40 p-3 rounded-2xl border border-emerald-500/10 items-center justify-center">
+                      {breachSequence.map((val, idx) => {
+                        const isInputMatched = breachInput[idx] === val;
+                        return (
+                          <span
+                            key={idx}
+                            className={`px-2 py-1 rounded text-[9px] font-bold border transition-colors ${
+                              isInputMatched
+                                ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                                : 'bg-neutral-900 border-neutral-800 text-slate-400'
+                            }`}
+                          >
+                            {val}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Buffer */}
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                      Buffer (Memory)
+                    </div>
+                    <div className="flex space-x-1.5 bg-black/50 p-3 rounded-2xl border border-emerald-500/10 min-h-11 items-center justify-start overflow-hidden">
+                      {Array(4).fill(null).map((_, idx) => {
+                        const val = breachInput[idx];
+                        return (
+                          <span
+                            key={idx}
+                            className={`w-8 h-8 rounded flex items-center justify-center text-[9px] font-bold border ${
+                              val
+                                ? 'bg-emerald-500/10 border-[#00ffcc]/30 text-[#00ffcc]'
+                                : 'bg-transparent border-dashed border-emerald-500/10 text-emerald-800'
+                            }`}
+                          >
+                            {val || ''}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    <div className="text-[7.5px] text-slate-500">
+                      Buffer limit: 4 inputs.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Success / Failure Result Splash screen */
+              <div className="text-center py-8 space-y-6 animate-fade-in">
+                {breachResult === 'success' ? (
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-pulse">
+                      <Terminal className="w-8 h-8 text-emerald-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold tracking-widest text-[#00ffcc] uppercase">
+                        🎉 BREACH SUCCESSFUL // GHOST THEME UNLOCKED
+                      </h3>
+                      <p className="text-[9px] text-slate-400">
+                        Workspace encryption bypassed. Ghost Hack visual theme has been registered.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(239,68,68,0.3)] animate-pulse">
+                      <Lock className="w-8 h-8 text-red-500" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold tracking-widest text-red-500 uppercase">
+                        ❌ DECRYPTION FAILED // ACCESS DENIED
+                      </h3>
+                      <p className="text-[9px] text-slate-400">
+                        Memory buffer overload or timeout expired. Intruder alert registered.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex space-x-2 justify-center max-w-xs mx-auto">
+                  {breachResult === 'failed' && (
+                    <button
+                      onClick={startBreachGame}
+                      className="flex-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-2 rounded-xl text-[9px] transition-all cursor-pointer active:scale-95"
+                    >
+                      TRY AGAIN
+                    </button>
+                  )}
+                  {breachResult === 'success' && (
+                    <button
+                      onClick={() => {
+                        setTheme('ghost');
+                        setBreachActive(false);
+                      }}
+                      className="flex-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold py-2 rounded-xl text-[9px] transition-all cursor-pointer active:scale-95"
+                    >
+                      ACTIVATE GHOST MODE
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setBreachActive(false)}
+                    className="bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-slate-400 px-4 py-2 rounded-xl text-[9px] transition-all cursor-pointer"
+                  >
+                    CLOSE
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {breachResult === null && (
+              <div className="flex justify-between items-center pt-4 border-t border-emerald-500/20">
+                <div className="text-[7.5px] text-slate-500 uppercase">
+                  STATUS: RUNNING DECRYPTOR EXECUTABLE // BYPASS METHOD: WALKMATRIX
+                </div>
+                <button
+                  onClick={() => {
+                    setBreachActive(false);
+                    addConsoleLog('[SYSTEM] Breach Protocol aborted by user.');
+                  }}
+                  className="bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold px-3 py-1.5 rounded-xl text-[8.5px] transition-all cursor-pointer active:scale-95"
+                >
+                  ABORT SYSTEM BYPASS
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 2. Main Hero Container (Rounded card layout) */}
+      <div
+        className={`relative w-full max-w-[1400px] mx-auto rounded-[48px] overflow-hidden h-[600px] flex flex-col transition-all duration-500 border ${themeCls.bg}`}
+      >
+        {/* Underlying video layer */}
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
+          <video
+            key={theme}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="w-full h-full object-cover scale-105 transition-transform duration-1000"
+            src={
+              theme === 'light'
+                ? 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260505_101331_74f9b798-3f00-4e86-8a01-377aa16ffeaa.mp4'
+                : 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_094145_4a271a6c-3869-4f1c-8aa7-aeb0cb227994.mp4'
+            }
+          />
+        </div>
+        <CanvasParticles theme={theme} matrixSpeed={matrixSpeed} matrixSymbol={matrixSymbol} />
+
+        {/* Dynamic transition for Hero Content vs Dashboard Grid */}
+        <AnimatePresence mode="wait">
+          {view === 'hero' ? (
+            <motion.div
+              key="hero-view"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.5 }}
+              className="relative z-20 flex-1 px-8 md:px-16 pt-12 md:pt-16 flex flex-col items-start justify-start"
+            >
+              <div className="flex flex-col items-start space-y-5 max-w-xl">
+                <h1
+                  className={`text-[42px] md:text-[56px] font-medium tracking-tight leading-[1.1] font-display transition-colors ${
+                    theme === 'dark' ? 'text-white' : 'text-[#0a1b33]'
+                  }`}
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  Foundation of the<br />new digital epoch
+                </h1>
+
+                <p className={`text-[14px] md:text-[15px] leading-relaxed font-sans transition-colors ${
+                  theme === 'dark' ? 'text-neutral-400' : 'text-[#64748b]'
+                }`}>
+                  Designing products, powering ecosystems and laying the foundation of a decentralized web for enterprises, builders and communities alike.
+                </p>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setChatOpen(true)}
+                  className={`text-xs font-semibold px-6 py-3 rounded-full shadow-lg transition-colors cursor-pointer ${
+                    theme === 'dark'
+                      ? 'bg-white text-black hover:bg-neutral-200'
+                      : 'bg-[#0a152d] text-white hover:bg-slate-800'
+                  }`}
+                >
+                  Contact Us
+                </motion.button>
+              </div>
+            </motion.div>
+          ) : (
+            // 2. "Command Center" Grid Dashboard View
+            <motion.div
+              key="dashboard-view"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.5 }}
+              className="relative z-20 flex-1 p-6 md:p-8 flex flex-col justify-start h-full"
+            >
+              {/* Header inside Dashboard */}
+              <div className="flex justify-between items-center mb-6">
+                <button
+                  onClick={() => setView('hero')}
+                  className={`flex items-center space-x-2 text-xs font-semibold cursor-pointer border rounded-full px-4 py-2 transition-all ${
+                    theme === 'dark'
+                      ? 'border-white/10 text-white hover:bg-white/5'
+                      : 'border-slate-200 text-[#0a1b33] hover:bg-slate-50'
+                  }`}
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Home</span>
+                </button>
+                <h2 className="text-sm font-bold tracking-widest uppercase">Command Center</h2>
+              </div>
+
+              {/* Grid Layout of 6 widgets */}
+              <div ref={dashboardRef} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto max-h-[440px] pr-2 relative">
+                
+                {/* WIDGET 1: AI Chat Quick Access */}
+                <motion.div
+                  drag
+                  dragListener={false}
+                  dragControls={dragControls1}
+                  dragConstraints={dashboardRef}
+                  dragElastic={0.15}
+                  dragSnapToOrigin={true}
+                  whileDrag={{ scale: 1.02, zIndex: 50, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                  className={`p-4 border rounded-3xl flex flex-col justify-between ${
+                    theme === 'dark' ? 'bg-neutral-950/80 border-white/10' : 'bg-slate-50 border-slate-200/60'
+                  }`}
+                >
+                  <div>
+                    <div className="flex justify-between items-center mb-1 select-none">
+                      <h3 className="text-xs font-bold">AI Assistant</h3>
+                      <div 
+                        onPointerDown={(e) => dragControls1.start(e)}
+                        className="cursor-grab active:cursor-grabbing p-1 text-slate-400/50 hover:text-slate-400 transition-colors"
+                      >
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mb-3">Tanyakan atau sematkan perkakas di chat</p>
+                  </div>
+                  <button
+                    onClick={() => setChatOpen(true)}
+                    className="w-full bg-[#0a1b33] text-white text-[10px] py-2 rounded-xl font-bold cursor-pointer text-center hover:bg-slate-800"
+                  >
+                    Buka Chat
+                  </button>
+                </motion.div>
+
+                {/* WIDGET 2: Word to PDF Converter */}
+                <motion.div
+                  drag
+                  dragListener={false}
+                  dragControls={dragControls2}
+                  dragConstraints={dashboardRef}
+                  dragElastic={0.15}
+                  dragSnapToOrigin={true}
+                  whileDrag={{ scale: 1.02, zIndex: 50, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                  className={`p-4 border rounded-3xl flex flex-col justify-between ${
+                    theme === 'dark' ? 'bg-neutral-950/80 border-white/10' : 'bg-slate-50 border-slate-200/60'
+                  }`}
+                >
+                  <div>
+                    <div className="flex justify-between items-center mb-1 select-none">
+                      <h3 className="text-xs font-bold flex items-center space-x-1.5"><FileText className="w-3.5 h-3.5 text-blue-500" /><span>Word Converter</span></h3>
+                      <div 
+                        onPointerDown={(e) => dragControls2.start(e)}
+                        className="cursor-grab active:cursor-grabbing p-1 text-slate-400/50 hover:text-slate-400 transition-colors"
+                      >
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".docx"
+                      onChange={e => {
+                        if (e.target.files && e.target.files[0]) {
+                          setWordFile(e.target.files[0]);
+                          setConvertedPdfUrl(null);
+                        }
+                      }}
+                      className="hidden"
+                      id="grid-docx-uploader"
+                    />
+                    <label
+                      htmlFor="grid-docx-uploader"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsWordGridDragHover(true);
+                      }}
+                      onDragLeave={() => setIsWordGridDragHover(false)}
+                      onDrop={() => setIsWordGridDragHover(false)}
+                      style={{ '--glow-color': getThemeAccentColor() } as React.CSSProperties}
+                      className={`block border border-dashed border-slate-300 rounded-xl p-2.5 text-center cursor-pointer text-[9px] hover:bg-white/10 bg-white/5 transition-all ${
+                        isWordGridDragHover ? 'uploader-glow' : ''
+                      }`}
+                    >
+                      {wordFile ? wordFile.name : 'Pilih DOCX'}
+                    </label>
+                  </div>
+                  {wordFile && (
+                    <button
+                      onClick={handleWordConversion}
+                      disabled={converting}
+                      className="w-full bg-[#0a1b33] text-white text-[10px] py-1.5 rounded-xl font-bold hover:bg-slate-800 cursor-pointer mt-2"
+                    >
+                      {converting ? 'Converting...' : 'Convert DOCX'}
+                    </button>
+                  )}
+                </motion.div>
+
+                {/* WIDGET 3: PDF Compressor */}
+                <motion.div
+                  drag
+                  dragListener={false}
+                  dragControls={dragControls3}
+                  dragConstraints={dashboardRef}
+                  dragElastic={0.15}
+                  dragSnapToOrigin={true}
+                  whileDrag={{ scale: 1.02, zIndex: 50, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                  className={`p-4 border rounded-3xl flex flex-col justify-between ${
+                    theme === 'dark' ? 'bg-neutral-950/80 border-white/10' : 'bg-slate-50 border-slate-200/60'
+                  }`}
+                >
+                  <div>
+                    <div className="flex justify-between items-center mb-1 select-none">
+                      <h3 className="text-xs font-bold flex items-center space-x-1.5"><FileCode className="w-3.5 h-3.5 text-purple-500" /><span>PDF Compressor</span></h3>
+                      <div 
+                        onPointerDown={(e) => dragControls3.start(e)}
+                        className="cursor-grab active:cursor-grabbing p-1 text-slate-400/50 hover:text-slate-400 transition-colors"
+                      >
+                        <GripVertical className="w-3.5 h-3.5" />
+                      </div>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={e => {
+                        if (e.target.files && e.target.files[0]) {
+                          setPdfFile(e.target.files[0]);
+                          setCompressionResult(null);
+                        }
+                      }}
+                      className="hidden"
+                      id="grid-pdf-uploader"
+                    />
+                    <label
+                      htmlFor="grid-pdf-uploader"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsPdfGridDragHover(true);
+                      }}
+                      onDragLeave={() => setIsPdfGridDragHover(false)}
+                      onDrop={() => setIsPdfGridDragHover(false)}
+                      style={{ '--glow-color': getThemeAccentColor() } as React.CSSProperties}
+                      className={`block border border-dashed border-slate-300 rounded-xl p-2.5 text-center cursor-pointer text-[9px] hover:bg-white/10 bg-white/5 transition-all ${
+                        isPdfGridDragHover ? 'uploader-glow' : ''
+                      }`}
+                    >
+                      {pdfFile ? pdfFile.name : 'Pilih PDF'}
+                    </label>
+                  </div>
+                  {compressionResult && (
+                    <div className={`mt-2 p-2 rounded-xl text-[9px] space-y-1.5 border ${themeCls.input}`}>
+                      <div className="flex justify-between font-semibold">
+                        <span>Optimized</span>
+                        <span className="text-emerald-500 font-bold">
+                          {Math.round((1 - compressionResult.compressedSize / compressionResult.originalSize) * 100)}% Saved
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="w-full bg-slate-200/20 h-2 rounded-full overflow-hidden">
+                          <div className="bg-slate-400 h-full rounded-full" style={{ width: '100%' }} />
+                        </div>
+                        <div className="w-full bg-slate-200/20 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-emerald-500 h-full rounded-full transition-all duration-1000 ease-out" 
+                            style={{ width: `${(compressionResult.compressedSize / compressionResult.originalSize) * 100}%` }} 
+                          />
+                        </div>
+                        <div className={`flex justify-between text-[7.5px] ${themeCls.subText}`}>
+                          <span>{formatBytes(compressionResult.originalSize)}</span>
+                          <span>{formatBytes(compressionResult.compressedSize)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {pdfFile && !compressionResult && (
+                    <button
+                      onClick={handleCompressPdf}
+                      disabled={compressing}
+                      className="w-full bg-[#0a1b33] text-white text-[10px] py-1.5 rounded-xl font-bold hover:bg-slate-800 cursor-pointer mt-2"
+                    >
+                      {compressing ? 'Compressing...' : 'Compress PDF'}
+                    </button>
+                  )}
+                </motion.div>
+
+                {/* WIDGET 4: Media Downloader */}
+                <motion.div
+                  drag
+                  dragListener={false}
+                  dragControls={dragControls4}
+                  dragConstraints={dashboardRef}
+                  dragElastic={0.15}
+                  dragSnapToOrigin={true}
+                  whileDrag={{ scale: 1.02, zIndex: 50, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                  className={`p-4 border rounded-3xl flex flex-col justify-between space-y-2.5 ${
+                    theme === 'dark' ? 'bg-neutral-950/80 border-white/10' : 'bg-slate-50 border-slate-200/60'
+                  }`}
+                >
+                  <div className="flex justify-between items-center select-none mb-1">
+                    <h3 className="text-xs font-bold flex items-center space-x-1.5"><Video className="w-3.5 h-3.5 text-rose-500" /><span>Cobalt Downloader</span></h3>
+                    <div 
+                      onPointerDown={(e) => dragControls4.start(e)}
+                      className="cursor-grab active:cursor-grabbing p-1 text-slate-400/50 hover:text-slate-400 transition-colors"
+                    >
+                      <GripVertical className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="URL Media..."
+                    value={mediaUrl}
+                    onChange={e => setMediaUrl(e.target.value)}
+                    className="w-full border rounded-lg px-2.5 py-1 text-[9px] bg-white/10 outline-none"
+                  />
+                  <button
+                    onClick={handleMediaDownload}
+                    disabled={downloadingMedia}
+                    className="w-full bg-[#0a1b33] text-white text-[10px] py-1.5 rounded-xl font-bold hover:bg-slate-800 cursor-pointer"
+                  >
+                    Download HD
+                  </button>
+                </motion.div>
+
+                {/* WIDGET 6: System Settings */}
+                <motion.div
+                  drag
+                  dragListener={false}
+                  dragControls={dragControls6}
+                  dragConstraints={dashboardRef}
+                  dragElastic={0.15}
+                  dragSnapToOrigin={true}
+                  whileDrag={{ scale: 1.02, zIndex: 50, boxShadow: "0 10px 25px rgba(0,0,0,0.15)" }}
+                  className={`p-4 border rounded-3xl flex flex-col justify-between space-y-2 ${themeCls.card}`}
+                >
+                  <div className="flex justify-between items-center select-none mb-1">
+                    <h3 className="text-xs font-bold flex items-center space-x-1.5"><Lock className="w-3.5 h-3.5 text-amber-500" /><span>Settings</span></h3>
+                    <div 
+                      onPointerDown={(e) => dragControls6.start(e)}
+                      className="cursor-grab active:cursor-grabbing p-1 text-slate-400/50 hover:text-slate-400 transition-colors"
+                    >
+                      <GripVertical className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <input
+                      type="password"
+                      placeholder="Gemini API Key..."
+                      value={geminiKey}
+                      onChange={e => setGeminiKey(e.target.value)}
+                      className={`w-full border rounded-lg px-2.5 py-1 text-[9px] outline-none ${themeCls.input}`}
+                    />
+                    
+                    {voices.length > 0 && (
+                      <div className="space-y-0.5">
+                        <label className="text-[7.5px] text-slate-400 block font-semibold">AI Assistant Voice</label>
+                        <select
+                          value={selectedVoiceURI}
+                          onChange={e => {
+                            setSelectedVoiceURI(e.target.value);
+                            playSound('click');
+                          }}
+                          className={`w-full border rounded-lg px-1.5 py-1 text-[8.5px] outline-none ${themeCls.input}`}
+                        >
+                          {voices.map((v, idx) => (
+                            <option key={idx} value={v.voiceURI} className="text-slate-700">
+                              {v.name} ({v.lang})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="space-y-0.5">
+                      <label className="text-[7.5px] text-slate-400 block font-semibold">UI Sound Profile</label>
+                      <select
+                        value={soundProfile}
+                        onChange={e => {
+                          setSoundProfile(e.target.value as any);
+                          setTimeout(() => playSound('click', true), 50);
+                        }}
+                        className={`w-full border rounded-lg px-1.5 py-1 text-[8.5px] outline-none ${themeCls.input}`}
+                      >
+                        <option value="scifi" className="text-slate-700">Sci-Fi Synth</option>
+                        <option value="retro" className="text-slate-700">Retro 8-Bit</option>
+                        <option value="minimal" className="text-slate-700">Minimal Click</option>
+                      </select>
+                    </div>
+
+
+
+                                         {/* Matrix Rain Customizer */}
+                    <div className="grid grid-cols-2 gap-1.5 mt-1">
+                      <div className="space-y-0.5">
+                        <label className="text-[7px] text-slate-400 block font-semibold">Matrix Speed</label>
+                        <select
+                          value={matrixSpeed}
+                          onChange={e => {
+                            setMatrixSpeed(e.target.value as any);
+                            playSound('click');
+                          }}
+                          className={`w-full border rounded-lg px-1 py-0.5 text-[8px] outline-none ${themeCls.input}`}
+                        >
+                          <option value="slow" className="text-slate-700">Slow</option>
+                          <option value="normal" className="text-slate-700">Normal</option>
+                          <option value="fast" className="text-slate-700">Fast</option>
+                        </select>
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[7px] text-slate-400 block font-semibold">Matrix Symbol</label>
+                        <select
+                          value={matrixSymbol}
+                          onChange={e => {
+                            setMatrixSymbol(e.target.value as any);
+                            playSound('click');
+                          }}
+                          className={`w-full border rounded-lg px-1 py-0.5 text-[8px] outline-none ${themeCls.input}`}
+                        >
+                          <option value="katakana" className="text-slate-700">Japanese</option>
+                          <option value="binary" className="text-slate-700">Binary (0-1)</option>
+                          <option value="hex" className="text-slate-700">Hex (0-F)</option>
+                          <option value="alphanum" className="text-slate-700">Alpha-Num</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Custom Color Picker */}
+                    <div className="flex items-center space-x-2 mt-2 pt-1.5 border-t border-slate-200/20">
+                      <input
+                        type="checkbox"
+                        id="use-custom-color"
+                        checked={useCustomColor}
+                        onChange={e => {
+                          setUseCustomColor(e.target.checked);
+                          playSound('click');
+                          addConsoleLog(`[COLOR] Custom accent color ${e.target.checked ? 'activated' : 'deactivated'}.`);
+                        }}
+                        className="w-3 h-3 accent-emerald-500 cursor-pointer"
+                      />
+                      <label htmlFor="use-custom-color" className="text-[7.5px] text-slate-400 font-semibold cursor-pointer">
+                        Use Custom Accent Color
+                      </label>
+                      {useCustomColor && (
+                        <input
+                          type="color"
+                          value={customColor}
+                          onChange={e => {
+                            setCustomColor(e.target.value);
+                            document.documentElement.style.setProperty('--glow-color', e.target.value);
+                          }}
+                          className="w-5 h-4 p-0 border-0 bg-transparent cursor-pointer rounded overflow-hidden"
+                          title="Choose Accent Color"
+                        />
+                      )}
+                    </div>
+
+
+                  </div>
+
+                  <button
+                    onClick={saveSettings}
+                    disabled={settingsLoading}
+                    className="w-full bg-[#0a1b33] text-white text-[10px] py-1.5 rounded-xl font-bold hover:bg-slate-800 cursor-pointer flex items-center justify-center space-x-1 mt-2"
+                  >
+                    {settingsLoading && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                    <span>Simpan Key</span>
+                  </button>
+                </motion.div>
+
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 4. Floating Bottom Navbar */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 w-auto px-4">
+          <motion.nav
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
+            className={`flex items-center backdrop-blur-2xl px-1.5 py-1.5 rounded-full shadow-[0_12px_40px_rgba(0,0,0,0.08)] border space-x-1 whitespace-nowrap transition-colors duration-500 ${
+              theme === 'dark'
+                ? 'bg-neutral-950/90 border-white/10 text-white'
+                : 'bg-white/90 border-slate-200/40 text-slate-700'
+            }`}
+          >
+                {/* Lock Screen Toggle */}
+                <button
+                  onClick={() => {
+                    setIsLocked(true);
+                    playSound('alarm');
+                  }}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer border shadow-sm ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-200/80 hover:bg-slate-100 text-slate-700'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
+                  }`}
+                  title="Lock Mainframe"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    const newMute = !isMuted;
+                    setIsMuted(newMute);
+                    if (!newMute) {
+                      playSound('success', true);
+                    } else {
+                      playSound('click');
+                    }
+                  }}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer border shadow-sm ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-200/80 hover:bg-slate-100 text-slate-700'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
+                  }`}
+                >
+                  {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                </button>
+    
+                {/* Theme toggle button inside navbar */}
+                <button
+                  onClick={() => {
+                    setTheme(prev => {
+                      if (prev === 'light') return 'dark';
+                      if (prev === 'dark') return 'cyberpunk';
+                      if (prev === 'cyberpunk') return 'matrix';
+                      if (prev === 'matrix') {
+                        return breachThemeUnlocked ? 'ghost' : 'light';
+                      }
+                      return 'light';
+                    });
+                    playSound('theme');
+                  }}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer border shadow-sm ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-200/80 hover:bg-slate-100 text-slate-700'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
+                  }`}
+                >
+                  <motion.div animate={{ rotate: theme === 'light' ? 0 : 360 }}>
+                    {theme === 'light' ? <Moon className="w-3.5 h-3.5 text-[#0a1b33]" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
+                  </motion.div>
+                </button>
+    
+                {/* Help cheatsheet button inside navbar */}
+                <button
+                  onClick={() => {
+                    setShowShortcutsHelp(prev => !prev);
+                    playSound('click');
+                  }}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer border shadow-sm ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-200/80 hover:bg-slate-100 text-slate-700'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
+                  }`}
+                  title="Keyboard Shortcuts (?)"
+                >
+                  <span className="text-xs font-bold font-mono">?</span>
+                </button>
+
+            {/* Nav button 1 (Home layout switcher) */}
+            <button
+              onClick={() => {
+                setView('hero');
+                playSound('click');
+              }}
+              className="text-[12px] font-semibold px-3.5 py-2 rounded-full hover:bg-white/10 transition-all cursor-pointer"
+            >
+              Home
+            </button>
+
+            {/* Nav button 2 (Dashboard Grid view switcher) */}
+            <button
+              onClick={() => {
+                setView(prev => (prev === 'hero' ? 'dashboard' : 'hero'));
+                playSound('click');
+              }}
+              className="text-[12px] font-semibold px-3.5 py-2 rounded-full hover:bg-white/10 transition-all cursor-pointer flex items-center space-x-1"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Products</span>
+            </button>
+
+            {/* Nav button 3 (Docs Command palette) */}
+            <button
+              onClick={() => {
+                setShowCommandPalette(true);
+                setSearchQuery('');
+                playSound('click');
+              }}
+              className="text-[12px] font-semibold px-3.5 py-2 rounded-full hover:bg-white/10 transition-all cursor-pointer"
+            >
+              Docs
+            </button>
+
+            {/* Nav button 4 (Collapsible Side-panel Chat switcher) */}
+            <button
+              onClick={() => {
+                setChatOpen(prev => !prev);
+                playSound('click');
+              }}
+              className="bg-white px-5 py-2 rounded-full text-[12px] font-semibold text-[#0a1b33] border border-slate-200/60 shadow-sm hover:border-slate-300 transition-all flex items-center space-x-1 cursor-pointer"
+            >
+              <span>Get in touch</span>
+              <ChevronRight className="w-3.5 h-3.5 text-[#0a1b33] stroke-[2.5px]" />
+            </button>
+          </motion.nav>
+        </div>
+
+      </div>
+
+      {/* 5. Seamless Marquee Logo Scroller Component with 3D Card Tilt (Enhancement 3) */}
+      <div className="relative w-full max-w-[1400px] mx-auto mt-10 overflow-hidden select-none">
+        
+        {/* Left/Right masking gradients */}
+        <div
+          className={`absolute inset-y-0 left-0 w-24 z-10 pointer-events-none transition-colors duration-500 ${
+            theme === 'dark' ? 'bg-gradient-to-r from-black to-transparent' : 'bg-gradient-to-r from-[#f9fafb] to-transparent'
+          }`}
+        />
+        <div
+          className={`absolute inset-y-0 right-0 w-24 z-10 pointer-events-none transition-colors duration-500 ${
+            theme === 'dark' ? 'bg-gradient-to-l from-black to-transparent' : 'bg-gradient-to-l from-[#f9fafb] to-transparent'
+          }`}
+        />
+
+        {/* Scrolling elements wrapper */}
+        <div
+          onMouseMove={handleMarqueeMouseMove}
+          onMouseLeave={() => {
+            setMarqueeDuration('30s');
+            lastMouseX.current = null;
+          }}
+          style={{
+            // @ts-ignore
+            '--marquee-duration': marqueeDuration,
+            // @ts-ignore
+            '--marquee-play-state': marqueePlayState
+          }}
+          className="animate-marquee flex gap-6 py-4"
+        >
+          {[...logoList, ...logoList].map((logo, idx) => (
+            <TiltCard key={idx} logo={logo} theme={theme} />
+          ))}
+        </div>
+      </div>
+
+      {/* ====================================================
+          COLLAPSIBLE SIDE-PANEL CHAT SIDEBAR (Split Screen)
+         ==================================================== */}
+      <AnimatePresence>
+        {chatOpen && (
+          <div className="fixed inset-y-0 right-0 z-50 flex justify-end w-full max-w-[450px]">
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className={`w-full h-full border-l shadow-2xl flex flex-col backdrop-blur-2xl ${
+                theme === 'dark'
+                  ? 'bg-[#08080c]/95 border-white/10 text-white'
+                  : 'bg-white/95 border-slate-200 text-slate-700'
+              }`}
+            >
+              {/* Sidebar Header */}
+              <div className={`p-4 border-b flex justify-between items-center bg-transparent ${
+                theme === 'dark' ? 'border-white/10' : 'border-slate-100'
+              }`}>
+                <div className="flex items-center space-x-2.5">
+                  <Activity className="w-4.5 h-4.5 text-emerald-500" />
+                  <div>
+                    <h2 className="text-xs font-bold">Mainframe Chat OS</h2>
+                    <p className="text-[9px] text-slate-400">Conversational Web Agent & Tools</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setChatOpen(false)}
+                  className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
+                    theme === 'dark' ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Chat Content Body */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                
+                {/* Message Log */}
+                <div className={`flex-1 overflow-y-auto space-y-3.5 p-2 rounded-2xl border max-h-[460px] ${
+                  theme === 'dark' ? 'bg-black/30 border-white/5' : 'bg-slate-50 border-slate-100'
+                }`}>
+                  {chatMessages.map((msg, i) => (
+                    <div
+                      key={i}
+                      className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[90%] p-3.5 rounded-2xl text-[11px] leading-relaxed shadow-sm ${
+                          msg.sender === 'user'
+                            ? 'bg-[#0a1b33] text-white'
+                            : theme === 'dark'
+                              ? 'bg-neutral-900 border border-white/5 text-white'
+                              : 'bg-white border border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                        
+                        {/* Inline tools renderer */}
+                        {msg.toolType && renderChatTool(msg.toolType)}
+                        
+                        {msg.sources && msg.sources.length > 0 && (
+                          <div className="mt-2.5 pt-2 border-t border-slate-200/50 text-[9px] text-slate-400">
+                            <strong>Sources:</strong>
+                            {msg.sources.map((src, idx) => (
+                              <a
+                                key={idx}
+                                href={src.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block text-blue-500 hover:underline mt-0.5"
+                              >
+                                [{src.source}] {src.title}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Agent Logs Terminal */}
+                {chatLogs.length > 0 && (
+                  <div className={`p-3 border rounded-2xl font-mono text-[9px] max-h-24 overflow-y-auto ${
+                    theme === 'dark' ? 'bg-black/55 border-white/10 text-neutral-400' : 'bg-slate-100 border-slate-200 text-slate-500'
+                  }`}>
+                    <div className="flex items-center justify-between mb-1.5 font-bold">
+                      <span className="flex items-center space-x-1">
+                        <Terminal className="w-3 h-3 text-emerald-500" />
+                        <span>Execution log:</span>
+                      </span>
+                      {chatLoading && <Loader2 className="w-2.5 h-2.5 animate-spin text-emerald-500" />}
+                    </div>
+                    {chatLogs.map((log, i) => (
+                      <div key={i} className="flex justify-between">
+                        <span>• {log.step}</span>
+                        <span className="opacity-80">{log.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Input Footer */}
+              <div className={`p-4 border-t ${theme === 'dark' ? 'border-white/10' : 'border-slate-100'}`}>
+                
+                {/* Tools Toolbar injector */}
+                <div className="flex flex-wrap gap-1 mb-3">
+                  <button onClick={() => triggerToolInChat('word-to-pdf', 'Word to PDF')} className="bg-[#0a1b33]/5 hover:bg-[#0a1b33]/10 text-[#0a1b33] border border-[#0a1b33]/10 text-[8px] font-bold px-2 py-0.5 rounded-full cursor-pointer transition-all">📄 Word PDF</button>
+                  <button onClick={() => triggerToolInChat('pdf-compressor', 'PDF Compressor')} className="bg-[#0a1b33]/5 hover:bg-[#0a1b33]/10 text-[#0a1b33] border border-[#0a1b33]/10 text-[8px] font-bold px-2 py-0.5 rounded-full cursor-pointer transition-all">📉 Compressor</button>
+                  <button onClick={() => triggerToolInChat('media-downloader', 'Media Downloader')} className="bg-[#0a1b33]/5 hover:bg-[#0a1b33]/10 text-[#0a1b33] border border-[#0a1b33]/10 text-[8px] font-bold px-2 py-0.5 rounded-full cursor-pointer transition-all">📥 Downloader</button>
+
+                  <button onClick={() => triggerToolInChat('diagnostics', 'Diagnostics')} className="bg-[#0a1b33]/5 hover:bg-[#0a1b33]/10 text-[#0a1b33] border border-[#0a1b33]/10 text-[8px] font-bold px-2 py-0.5 rounded-full cursor-pointer transition-all">⚙️ Diagnostics</button>
+                </div>
+
+                <form onSubmit={handleChatSubmit} className="flex items-center space-x-2">
+                  {/* Voice Microphone recording button */}
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
+                      isListening
+                        ? 'bg-red-500 border-red-600 text-white animate-pulse'
+                        : theme === 'dark'
+                          ? 'border-white/10 hover:bg-white/5 text-neutral-400'
+                          : 'border-slate-200 hover:bg-slate-50 text-slate-500'
+                    }`}
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+
+                  {isListening && (
+                    <div className="flex items-center justify-center space-x-0.5 px-1 bg-red-500/10 border border-red-500/20 rounded-xl h-8 shrink-0">
+                      <span className="w-0.5 bg-red-500 rounded-full animate-wave-bar h-3" style={{ animationDelay: '0.1s' }} />
+                      <span className="w-0.5 bg-red-500 rounded-full animate-wave-bar h-5" style={{ animationDelay: '0.3s' }} />
+                      <span className="w-0.5 bg-red-500 rounded-full animate-wave-bar h-2" style={{ animationDelay: '0.2s' }} />
+                      <span className="w-0.5 bg-red-500 rounded-full animate-wave-bar h-4" style={{ animationDelay: '0.4s' }} />
+                      <span className="w-0.5 bg-red-500 rounded-full animate-wave-bar h-1.5" style={{ animationDelay: '0.0s' }} />
+                    </div>
+                  )}
+
+                  <input
+                    type="text"
+                    placeholder="Ask the AI agent..."
+                    value={chatInput}
+                    onChange={e => setChatInput(e.target.value)}
+                    disabled={chatLoading}
+                    className={`flex-1 border rounded-xl px-3.5 py-2.5 outline-none text-xs ${
+                      theme === 'dark' ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}
+                  />
+                  <button
+                    type="submit"
+                    disabled={chatLoading}
+                    className="bg-[#0a1b33] hover:bg-slate-800 text-white p-2.5 rounded-xl cursor-pointer disabled:opacity-50 transition-colors"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </form>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ====================================================
+          GLOBAL DRAG AND DROP FILE DROP OVERLAY
+         ==================================================== */}
+      <AnimatePresence>
+        {isDragging && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0a1b33]/85 backdrop-blur-md text-white border-4 border-dashed border-white/20 m-6 rounded-[32px] pointer-events-none"
+          >
+            <FileUp className="w-16 h-16 animate-bounce text-white mb-4" />
+            <h2 className="text-2xl font-bold font-display">Lepas berkas untuk diproses</h2>
+            <p className="text-sm text-slate-300">Konversi otomatis untuk berkas DOCX | Kompresi otomatis untuk PDF</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ====================================================
+          COMMAND PALETTE OVERLAY (⌘K / Ctrl+K)
+         ==================================================== */}
+      <AnimatePresence>
+        {showCommandPalette && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCommandPalette(false)}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            />
+
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xl z-10"
+            >
+              <div className="p-4 border-b border-slate-100 flex items-center space-x-3">
+                <Search className="text-slate-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Type a command or search workspace..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full bg-transparent text-[#0a1b33] placeholder-slate-400 border-none outline-none text-sm"
+                  autoFocus
+                />
+                <button
+                  onClick={() => setShowCommandPalette(false)}
+                  className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md"
+                >
+                  ESC
+                </button>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto p-2">
+                {commandList.length === 0 ? (
+                  <p className="text-slate-400 text-xs p-4 text-center">No workspace commands found.</p>
+                ) : (
+                  commandList.map((cmd: { name: string; desc: string; key: string }) => (
+                    <button
+                      key={cmd.key}
+                      onClick={() => handleCommandPaletteSelect(cmd.key)}
+                      className="w-full text-left p-3 rounded-2xl hover:bg-slate-50 flex items-center justify-between group transition-colors cursor-pointer"
+                    >
+                      <div>
+                        <h4 className="text-xs font-semibold text-[#0a1b33]">{cmd.name}</h4>
+                        <p className="text-[10px] text-slate-400">{cmd.desc}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#0a1b33] transition-colors" />
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ====================================================
+          FLOATING SYSTEM CONSOLE CLI LOG DRAWER (Enhancement 2)
+         ==================================================== */}
+      <div className="fixed bottom-4 left-4 z-40">
+        <button
+          onClick={() => setConsoleOpen(prev => !prev)}
+          className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full border text-[10px] font-mono cursor-pointer shadow-md transition-all ${
+            theme === 'dark'
+              ? 'bg-neutral-900 border-white/10 hover:bg-neutral-800 text-emerald-400'
+              : 'bg-white border-slate-200 hover:bg-slate-50 text-[#0a1b33]'
+          }`}
+        >
+          <Terminal className="w-3.5 h-3.5 animate-pulse" />
+          <span>Console Log ({consoleLogs.length})</span>
+        </button>
+
+        <AnimatePresence>
+          {consoleOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className={`absolute bottom-10 left-0 w-80 h-48 border rounded-2xl shadow-xl p-3 font-mono text-[8px] flex flex-col justify-between overflow-hidden z-50 ${
+                theme === 'dark' ? 'bg-[#06060c] border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-600'
+              }`}
+            >
+              <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/50 mb-1.5">
+                <span className="text-[9px] font-bold flex items-center space-x-1"><Terminal className="w-3 h-3 text-emerald-400" /><span>System Logs</span></span>
+                <div className="flex space-x-2">
+                  <button onClick={exportConsoleLogs} className="text-emerald-500 hover:underline text-[8px] font-bold">Export</button>
+                  <button onClick={() => setConsoleLogs([])} className="text-red-500 hover:underline text-[8px]">Clear</button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-1 pr-1 select-text text-[7.5px] mb-2 font-mono">
+                {consoleLogs.map((log, i) => (
+                  <div key={i} className="leading-tight">{log}</div>
+                ))}
+              </div>
+              {consoleInput.trim() && (
+                <div className="flex flex-wrap gap-1.5 mb-1 pb-1 border-b border-white/5">
+                  {AVAILABLE_CONSOLE_COMMANDS
+                    .filter(c => c.startsWith(consoleInput.trim().toLowerCase()) && c !== consoleInput.trim().toLowerCase())
+                    .map(s => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          setConsoleInput(s);
+                          playSound('click');
+                        }}
+                        className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded px-1.5 py-0.5 text-[6.5px] font-mono transition-all cursor-pointer"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                </div>
+              )}
+              <form onSubmit={handleConsoleCommandSubmit} className="flex items-center space-x-1 border-t border-slate-200/30 pt-1.5">
+                <span className="text-emerald-400 font-bold font-mono text-[9px]">$</span>
+                <input
+                  type="text"
+                  value={consoleInput}
+                  onChange={e => setConsoleInput(e.target.value)}
+                  onKeyDown={handleConsoleInputKeyDown}
+                  placeholder="Type command (try 'help')..."
+                  className="flex-1 bg-transparent border-none outline-none text-[8px] font-mono text-emerald-400 placeholder-emerald-700/50"
+                />
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Keyboard Shortcuts Cheat Sheet Modal */}
+      <AnimatePresence>
+        {showShortcutsHelp && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowShortcutsHelp(false)}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            />
+            
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className={`relative w-full max-w-sm border rounded-3xl overflow-hidden shadow-2xl z-10 p-6 ${
+                theme === 'dark' ? 'bg-[#06060c] border-white/10 text-white' : 'bg-white border-slate-200 text-[#0a1b33]'
+              }`}
+            >
+              <div className="flex justify-between items-center mb-4 border-b pb-2 border-slate-100">
+                <h3 className="text-xs font-bold flex items-center space-x-1.5">
+                  <Terminal className="w-4 h-4 text-blue-500 animate-pulse" />
+                  <span>Keyboard Shortcuts</span>
+                </h3>
+                <button
+                  onClick={() => setShowShortcutsHelp(false)}
+                  className="text-slate-400 hover:text-slate-600 text-[10px] font-semibold"
+                >
+                  Close (Esc)
+                </button>
+              </div>
+              
+              <div className="space-y-3.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[11px]">Command Palette</span>
+                  <kbd className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[9px] font-mono shadow-sm text-slate-700">Ctrl + K</kbd>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[11px]">Toggle Shortcuts Menu</span>
+                  <kbd className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[9px] font-mono shadow-sm text-slate-700">?</kbd>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[11px]">Toggle Dark/Light Theme</span>
+                  <kbd className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[9px] font-mono shadow-sm text-slate-700">Ctrl + D</kbd>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[11px]">Toggle Console Log Drawer</span>
+                  <kbd className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[9px] font-mono shadow-sm text-slate-700">Ctrl + L</kbd>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[11px]">Mute/Unmute UI Audio</span>
+                  <kbd className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[9px] font-mono shadow-sm text-slate-700">Ctrl + M</kbd>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}

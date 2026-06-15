@@ -1,0 +1,28 @@
+# System & OS Files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# Local Database Files (SQLite)
+zays.db
+zays.db-journal
+backend/zays.db
+backend/zays.db-journal
+scratch/
+
+# Dependencies & Build Outputs
+node_modules/
+dist/
+build/
+bin/
+backend/main
+backend/main.exe
+*.exe
+
+# IDE & Config directories
+.vscode/
+.idea/
+.gemini/
+.agents/
+.system_generated/
