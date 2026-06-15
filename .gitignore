@@ -4,6 +4,11 @@ Thumbs.db
 *.log
 *.tmp
 
+# Environment variables
+.env
+.env.*
+
+
 # Local Database Files (SQLite)
 zays.db
 zays.db-journal

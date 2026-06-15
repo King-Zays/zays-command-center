@@ -36,15 +36,12 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   XCircle,
-  Info
+  Info,
+  Home
 } from 'lucide-react';
-import operatorCutout from './assets/operator_cutout.png';
-import * as pdfjsLib from 'pdfjs-dist';
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import operatorCutout from './assets/operator_cutout.webp';
+import heroImg from './assets/hero.webp';
 
-// Configure pdfjs worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
 
@@ -63,49 +60,49 @@ const authFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<
 const logoList = [
   {
     name: 'Instagram',
-    url: 'https://svgl.app/library/instagram-icon.svg',
+    url: '/library/instagram-icon.svg',
     gradient: 'linear-gradient(135deg, #833AB4, #FD1D1D, #F56040)',
     link: 'https://www.instagram.com/zaysss._/'
   },
   {
     name: 'TikTok',
-    url: 'https://svgl.app/library/tiktok-icon-dark.svg',
+    url: '/library/tiktok-icon-dark.svg',
     gradient: 'linear-gradient(135deg, #010101, #EE1D52, #69C9D0)',
     link: 'https://www.tiktok.com/@firzangames'
   },
   {
     name: 'LinkedIn',
-    url: 'https://svgl.app/library/linkedin.svg',
+    url: '/library/linkedin.svg',
     gradient: 'linear-gradient(135deg, #0077B5, #0A66C2)',
     link: 'https://www.linkedin.com/in/firzan-syaroni-476202329/'
   },
   {
     name: 'GitHub',
-    url: 'https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/github.svg',
+    url: '/library/github.svg',
     gradient: 'linear-gradient(135deg, #24292e, #15181b)',
     link: 'https://github.com/King-Zays'
   },
   {
     name: 'YouTube',
-    url: 'https://svgl.app/library/youtube.svg',
+    url: '/library/youtube.svg',
     gradient: 'linear-gradient(135deg, #FF0000, #B2071D)',
     link: 'https://www.youtube.com/@FirzanGames'
   },
   {
     name: 'Discord',
-    url: 'https://svgl.app/library/discord.svg',
+    url: '/library/discord.svg',
     gradient: 'linear-gradient(135deg, #5865F2, #4752C4)',
     link: 'https://discord.com/users/522267073393721345'
   },
   {
     name: 'Gmail',
-    url: 'https://svgl.app/library/gmail.svg',
+    url: '/library/gmail.svg',
     gradient: 'linear-gradient(135deg, #EA4335, #C5221F)',
     link: 'https://mail.google.com/mail/?view=cm&fs=1&to=firzansyaroni999@gmail.com'
   },
   {
     name: 'Canva',
-    url: 'https://svgl.app/library/canva.svg',
+    url: '/library/canva.svg',
     gradient: 'linear-gradient(135deg, #00C4CC, #7D2AE8)',
     link: 'https://canva.link/z1nsuasa7apzhhb'
   }
@@ -182,6 +179,8 @@ function TiltCard({ logo, theme }: { logo: any; theme: 'light' | 'dark' }) {
             <img
               src={logo.url}
               alt={logo.name}
+              width={24}
+              height={24}
               className="h-6 w-6 object-contain transition-all duration-300 opacity-90 group-hover:opacity-100"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
@@ -199,6 +198,8 @@ function TiltCard({ logo, theme }: { logo: any; theme: 'light' | 'dark' }) {
           <img
             src={logo.url}
             alt={logo.name}
+            width={32}
+            height={32}
             className={`h-8 max-w-[90px] object-contain transition-all duration-300 group-hover:brightness-0 group-hover:invert opacity-75 group-hover:opacity-100 ${
               theme === 'dark' && logo.name === 'GitHub' ? 'invert' : ''
             }`}
@@ -237,17 +238,11 @@ function CanvasParticles({
     if (!ctx) return;
 
     let animationId: number;
-    let width = (canvas.width = canvas.offsetWidth);
-    let height = (canvas.height = canvas.offsetHeight);
+    let width = canvas.width || 300;
+    let height = canvas.height || 150;
 
-    const handleResize = () => {
-      if (!canvas) return;
-      width = canvas.width = canvas.offsetWidth;
-      height = canvas.height = canvas.offsetHeight;
-    };
-    window.addEventListener('resize', handleResize);
-
-    const particleCount = 45;
+    const isMobile = window.innerWidth < 768;
+    const particleCount = isMobile ? 15 : 45;
     const particles: Array<{
       x: number;
       y: number;
@@ -256,21 +251,25 @@ function CanvasParticles({
       radius: number;
     }> = [];
 
-    for (let i = 0; i < particleCount; i++) {
-      particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.35,
-        vy: (Math.random() - 0.5) * 0.35,
-        radius: Math.random() * 2 + 1,
+    // Cache the last known mouse rect to avoid repeated getBoundingClientRect during mousemove
+    let cachedRect: DOMRect | null = null;
+    const handleResize = () => {
+      if (!canvas) return;
+      cachedRect = null; // Invalidate cached rect on resize
+      requestAnimationFrame(() => {
+        if (!canvas) return;
+        width = canvas.width = canvas.offsetWidth;
+        height = canvas.height = canvas.offsetHeight;
       });
-    }
+    };
+    window.addEventListener('resize', handleResize);
 
     let mouse = { x: -9999, y: -9999 };
     const handleMouseMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
+      // Use cached rect to avoid layout thrashing on every mousemove
+      if (!cachedRect) cachedRect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - cachedRect.left;
+      mouse.y = e.clientY - cachedRect.top;
     };
     const handleMouseLeave = () => {
       mouse.x = -9999;
@@ -345,7 +344,25 @@ function CanvasParticles({
       animationId = requestAnimationFrame(draw);
     };
 
-    draw();
+    // Defer both sizing AND the animation loop start to after first paint
+    // This prevents the canvas from blocking LCP paint
+    requestAnimationFrame(() => {
+      if (!canvas) return;
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+      cachedRect = canvas.getBoundingClientRect();
+
+      for (let i = 0; i < particleCount; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          radius: Math.random() * 2 + 1,
+        });
+      }
+      draw();
+    });
 
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -1286,12 +1303,19 @@ export default function App() {
   };
   const themeCls = getThemeClasses();
 
-  // Load diagnostics & settings on start
+  // Load diagnostics & settings on start, heavily deferred to keep them out of the critical path
+  // Use 5s delay so LCP + FCP are fully painted before any backend API requests fire
   useEffect(() => {
-    fetchDiagnostics();
-    fetchSettings();
-    const diagInterval = setInterval(fetchDiagnostics, 5000); // 5 seconds for live sparklines
-    return () => clearInterval(diagInterval);
+    let diagInterval: any;
+    const timer = setTimeout(() => {
+      fetchDiagnostics();
+      fetchSettings();
+      diagInterval = setInterval(fetchDiagnostics, 8000); // 8 seconds polling to reduce main-thread pressure
+    }, 5000);
+    return () => {
+      clearTimeout(timer);
+      if (diagInterval) clearInterval(diagInterval);
+    };
   }, []);
 
   // Automatic screen glitch transition hook wkwk
@@ -2073,6 +2097,13 @@ export default function App() {
     playSound('click');
     addConsoleLog('[PDF] Memulai konversi PDF ke JPG di browser...');
     try {
+      addConsoleLog('[PDF] Memuat library pdfjs, jszip, dan file-saver...');
+      const pdfjsLib = await import('pdfjs-dist');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+      
+      const JSZip = (await import('jszip')).default;
+      const { saveAs } = await import('file-saver');
+
       const arrayBuffer = await pdfToJpgFile.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       const numPages = pdf.numPages;
@@ -2736,20 +2767,33 @@ export default function App() {
       >
         {/* Underlying video layer */}
         <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden select-none">
-          <video
-            key={theme}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            className="w-full h-full object-cover scale-105 transition-transform duration-1000"
-            src={
-              theme === 'light'
-                ? 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260505_101331_74f9b798-3f00-4e86-8a01-377aa16ffeaa.mp4'
-                : 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_094145_4a271a6c-3869-4f1c-8aa7-aeb0cb227994.mp4'
-            }
-          />
+          {window.innerWidth >= 768 ? (
+            <video
+              key={theme}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="none"
+              poster={heroImg}
+              className="w-full h-full object-cover scale-105 transition-transform duration-1000"
+              src={
+                theme === 'light'
+                  ? 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260505_101331_74f9b798-3f00-4e86-8a01-377aa16ffeaa.mp4'
+                  : 'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_094145_4a271a6c-3869-4f1c-8aa7-aeb0cb227994.mp4'
+              }
+            />
+          ) : (
+            <img
+              src={heroImg}
+              alt="Background"
+              width={343}
+              height={361}
+              fetchPriority="high"
+              loading="eager"
+              className="w-full h-full object-cover"
+            />
+          )}
         </div>
         <CanvasParticles theme={theme} />
 
@@ -2765,6 +2809,7 @@ export default function App() {
               className="relative z-20 flex-1 px-8 md:px-16 pt-12 md:pt-16 flex flex-col items-start justify-start"
             >
               <div className="flex flex-col items-start space-y-5 max-w-xl">
+
                 <h1
                   className={`text-[42px] md:text-[56px] font-medium tracking-tight leading-[1.1] font-display transition-colors ${
                     theme === 'dark' ? 'text-white' : 'text-[#0a1b33]'
@@ -2847,6 +2892,7 @@ export default function App() {
                         : 'border-slate-200 text-slate-500 hover:text-[#0a1b33] hover:bg-slate-50'
                     }`}
                     title="Settings"
+                    aria-label="Open Settings"
                   >
                     <Settings className="w-3.5 h-3.5" />
                   </button>
@@ -3543,6 +3589,8 @@ export default function App() {
                         <motion.img
                           src={operatorCutout}
                           alt="Firzan Syaroni"
+                          width={512}
+                          height={452}
                           className="h-56 md:h-64 object-contain relative z-10 drop-shadow-[0_12px_24px_rgba(0,0,0,0.18)] select-none pointer-events-none transition-transform duration-500 group-hover:scale-103"
                         />
 
@@ -3550,7 +3598,7 @@ export default function App() {
                         {[
                           {
                             name: 'TikTok',
-                            url: 'https://svgl.app/library/tiktok-icon-dark.svg',
+                            url: '/library/tiktok-icon-dark.svg',
                             link: 'https://www.tiktok.com/@firzangames',
                             pos: 'top-2 left-6 md:left-12',
                             animate: { y: [0, -8, 0], rotate: [0, 6, 0] },
@@ -3559,7 +3607,7 @@ export default function App() {
                           },
                           {
                             name: 'GitHub',
-                            url: 'https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/github.svg',
+                            url: '/library/github.svg',
                             link: 'https://github.com/King-Zays',
                             pos: '-top-6 left-1/2 -translate-x-1/2',
                             animate: { y: [0, -10, 0], scale: [1, 1.05, 1] },
@@ -3567,7 +3615,7 @@ export default function App() {
                           },
                           {
                             name: 'Instagram',
-                            url: 'https://svgl.app/library/instagram-icon.svg',
+                            url: '/library/instagram-icon.svg',
                             link: 'https://www.instagram.com/zaysss._/',
                             pos: 'top-2 right-6 md:right-12',
                             animate: { y: [0, -6, 0], rotate: [0, -8, 0] },
@@ -3575,7 +3623,7 @@ export default function App() {
                           },
                           {
                             name: 'Gmail',
-                            url: 'https://svgl.app/library/gmail.svg',
+                            url: '/library/gmail.svg',
                             link: 'https://mail.google.com/mail/?view=cm&fs=1&to=firzansyaroni999@gmail.com',
                             pos: 'bottom-8 left-4 md:left-8',
                             animate: { y: [0, -7, 0], rotate: [0, -5, 0] },
@@ -3583,7 +3631,7 @@ export default function App() {
                           },
                           {
                             name: 'LinkedIn',
-                            url: 'https://svgl.app/library/linkedin.svg',
+                            url: '/library/linkedin.svg',
                             link: 'https://www.linkedin.com/in/firzan-syaroni-476202329/',
                             pos: 'bottom-8 right-4 md:right-8',
                             animate: { y: [0, -9, 0], rotate: [0, 8, 0] },
@@ -3611,6 +3659,8 @@ export default function App() {
                             <img
                               src={badge.url}
                               alt={badge.name}
+                              width={48}
+                              height={48}
                               className="w-full h-full object-contain select-none pointer-events-none"
                             />
                           </motion.a>
@@ -3912,6 +3962,7 @@ export default function App() {
                       ? 'bg-slate-50 border-slate-200/80 hover:bg-slate-100 text-slate-700'
                       : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
                   }`}
+                  aria-label={isMuted ? "Unmute Audio" : "Mute Audio"}
                 >
                   {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
                 </button>
@@ -3927,6 +3978,7 @@ export default function App() {
                       ? 'bg-slate-50 border-slate-200/80 hover:bg-slate-100 text-slate-700'
                       : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
                   }`}
+                  aria-label="Toggle Theme"
                 >
                   <motion.div animate={{ rotate: theme === 'light' ? 0 : 360 }}>
                     {theme === 'light' ? <Moon className="w-3.5 h-3.5 text-[#0a1b33]" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
@@ -3945,6 +3997,7 @@ export default function App() {
                       : 'bg-white/5 border-white/10 hover:bg-white/10 text-white'
                   }`}
                   title="Keyboard Shortcuts (?)"
+                  aria-label="Keyboard Shortcuts Help"
                 >
                   <span className="text-xs font-bold font-mono">?</span>
                 </button>
@@ -3955,7 +4008,7 @@ export default function App() {
                 setView('hero');
                 playSound('click');
               }}
-              className={`text-[12px] font-semibold px-3.5 py-2 rounded-full transition-all cursor-pointer ${
+              className={`w-9 h-9 md:w-auto md:h-auto md:px-3.5 md:py-2 rounded-full transition-all cursor-pointer flex items-center justify-center ${
                 view === 'hero'
                   ? theme === 'light'
                     ? 'bg-slate-100 text-[#0a1b33] font-bold'
@@ -3965,7 +4018,7 @@ export default function App() {
                     : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              Home
+              <Home className="w-3.5 h-3.5" /><span className="hidden md:inline ml-1.5">Home</span>
             </button>
 
             {/* Nav button 2 (Dashboard Grid view switcher) */}
@@ -3974,7 +4027,7 @@ export default function App() {
                 setView('dashboard');
                 playSound('click');
               }}
-              className={`text-[12px] font-semibold px-3.5 py-2 rounded-full transition-all cursor-pointer flex items-center space-x-1 ${
+              className={`w-9 h-9 md:w-auto md:h-auto md:px-3.5 md:py-2 rounded-full transition-all cursor-pointer flex items-center justify-center ${
                 view === 'dashboard'
                   ? theme === 'light'
                     ? 'bg-slate-100 text-[#0a1b33] font-bold'
@@ -3984,8 +4037,7 @@ export default function App() {
                     : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Products</span>
+              <LayoutGrid className="w-3.5 h-3.5" /><span className="hidden md:inline ml-1.5">Products</span>
             </button>
 
             {/* Nav button 2.5 (About Me view switcher) */}
@@ -3994,7 +4046,7 @@ export default function App() {
                 setView('about');
                 playSound('click');
               }}
-              className={`text-[12px] font-semibold px-3.5 py-2 rounded-full transition-all cursor-pointer ${
+              className={`w-9 h-9 md:w-auto md:h-auto md:px-3.5 md:py-2 rounded-full transition-all cursor-pointer flex items-center justify-center ${
                 view === 'about'
                   ? theme === 'light'
                     ? 'bg-slate-100 text-[#0a1b33] font-bold'
@@ -4004,10 +4056,8 @@ export default function App() {
                     : 'text-slate-400 hover:text-white hover:bg-white/5'
               }`}
             >
-              About
+              <Info className="w-3.5 h-3.5" /><span className="hidden md:inline ml-1.5">About</span>
             </button>
-
-
 
             {/* Nav button 4 (Collapsible Side-panel Chat switcher) */}
             <button
@@ -4015,14 +4065,13 @@ export default function App() {
                 setChatOpen(prev => !prev);
                 playSound('click');
               }}
-              className={`px-5 py-2 rounded-full text-[12px] font-semibold transition-all flex items-center space-x-1 cursor-pointer border shadow-sm ${
+              className={`w-9 h-9 md:w-auto md:h-auto md:px-5 md:py-2 rounded-full text-[12px] font-semibold transition-all flex items-center justify-center cursor-pointer border shadow-sm ${
                 theme === 'light'
                   ? 'bg-[#0a1b33] text-white hover:bg-slate-800 border-slate-200'
                   : 'bg-white text-[#0a1b33] hover:bg-neutral-200 border-white/10'
               }`}
             >
-              <span>Get in touch</span>
-              <ChevronRight className="w-3.5 h-3.5 stroke-[2.5px]" />
+              <Mail className="w-3.5 h-3.5" /><span className="hidden md:inline ml-1.5">Get in touch</span><ChevronRight className="w-3.5 h-3.5 stroke-[2.5px] hidden md:inline ml-1" />
             </button>
           </motion.nav>
         </div>
@@ -4098,6 +4147,7 @@ export default function App() {
                   className={`p-1.5 rounded-full border transition-colors cursor-pointer ${
                     theme === 'dark' ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50'
                   }`}
+                  aria-label="Close Chat"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
